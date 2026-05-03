@@ -8,8 +8,14 @@
   --border: #1a2740;
   --border-bright: #243552;
   --accent: #00c8f0;
+  --accent-rgb: 0, 200, 240;
   --accent-dim: #0097b8;
   --accent-glow: rgba(0, 200, 240, 0.15);
+  --accent-live: #22c55e;
+  --accent-live-rgb: 34, 197, 94;
+  --accent-live-soft: #8fffd2;
+  --accent-live-muted: #83d9b5;
+  --accent-live-text: #dfffee;
   --accent-2: #6d28d9;
   --text-primary: #e4ecf7;
   --text-secondary: #8ba3c4;
