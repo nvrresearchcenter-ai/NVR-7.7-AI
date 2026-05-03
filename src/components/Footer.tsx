@@ -121,6 +121,26 @@ export function Footer() {
           <FooterLink href="/refund">Refunds</FooterLink>
         </div>
       </div>
+
+      <div
+        style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+          paddingTop: '16px',
+          textAlign: 'center',
+        }}
+      >
+        <p
+          style={{
+            fontFamily: 'DM Mono, monospace',
+            color: 'var(--accent)',
+            fontSize: '0.75rem',
+            letterSpacing: '0.08em',
+          }}
+        >
+          Updated build: NVR pricing v2
+        </p>
+      </div>
     </footer>
   )
 }
