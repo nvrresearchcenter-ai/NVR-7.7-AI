@@ -145,8 +145,25 @@ function Pricing() {
               gap: 20px;
               align-items: stretch;
             }
-            @media (max-width: 980px) {
+            .plan-card {
+              transform: translateY(0);
+              transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+            }
+            .plan-card--highlighted {
+              transform: translateY(-6px);
+            }
+            .plan-card:hover {
+              transform: translateY(-10px);
+              border-color: rgba(0,200,240,0.55);
+              box-shadow: 0 0 0 1px rgba(0,200,240,0.22), 0 28px 70px -24px rgba(0,200,240,0.32);
+            }
+            .plan-card--highlighted:hover {
+              box-shadow: 0 0 0 1px rgba(0,200,240,0.3), 0 28px 80px -20px rgba(0,200,240,0.45);
+            }
+            @media (max-width: 1100px) {
               .plans-grid { grid-template-columns: 1fr; max-width: 460px; margin: 0 auto; }
+              .plan-card--highlighted { transform: translateY(0); }
+              .plan-card:hover { transform: translateY(-4px); }
             }
           `}</style>
         </div>
@@ -202,6 +219,7 @@ function PlanCard({ plan }: { plan: Plan }) {
   const highlighted = !!plan.highlighted
   return (
     <div
+      className={highlighted ? 'plan-card plan-card--highlighted' : 'plan-card'}
       style={{
         position: 'relative',
         display: 'flex',
@@ -216,8 +234,6 @@ function PlanCard({ plan }: { plan: Plan }) {
         boxShadow: highlighted
           ? '0 0 0 1px rgba(0,200,240,0.18), 0 20px 60px -20px rgba(0,200,240,0.35)'
           : '0 12px 40px -24px rgba(0,0,0,0.6)',
-        transform: highlighted ? 'translateY(-6px)' : 'none',
-        transition: 'transform 0.2s, border-color 0.2s',
       }}
     >
       {highlighted && (
