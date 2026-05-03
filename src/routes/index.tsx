@@ -85,8 +85,8 @@ function Home() {
                 maxWidth: '460px',
               }}
             >
-              NVR 7.7 brings real-time AI analysis, automated threat detection, and
-              intelligent automation to your infrastructure — at a flat rate of $25/month.
+              NVR 7.7 brings world analysis, coding guidance, design prompts, and
+              network intelligence into one focused project workspace.
             </p>
 
             <div
@@ -94,7 +94,7 @@ function Home() {
               style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}
             >
               <Link to="/pricing" className="btn-primary" style={{ fontSize: '0.9375rem', padding: '13px 32px' }}>
-                Start for $25/mo
+                View plans
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M3 8h10M9 4l4 4-4 4" />
                 </svg>
@@ -315,10 +315,10 @@ function Home() {
         >
           <div className="tag" style={{ marginBottom: '20px' }}>Simple pricing</div>
           <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '16px' }}>
-            Everything for <span style={{ color: 'var(--accent)' }}>$25/month</span>
+            Plans from <span style={{ color: 'var(--accent)' }}>$7/month</span>
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.0625rem', lineHeight: 1.7, marginBottom: '36px' }}>
-            No tiers. No hidden fees. Full platform access, unlimited projects, and priority support — all included.
+            Choose the NVR 7.8 package or upgrade to NVR PRO for chat, project assistance, research, coding, and design work.
           </p>
           <Link to="/pricing" className="btn-primary" style={{ fontSize: '1rem', padding: '15px 40px' }}>
             View pricing details
@@ -351,6 +351,16 @@ function HeroDashboard() {
       <div style={{ position: 'absolute', top: 0, right: 0, width: '180px', height: '180px', background: 'radial-gradient(circle, rgba(0,200,240,0.08) 0%, transparent 70%)' }} />
 
       {/* Header */}
+      <div style={{ position: 'relative', zIndex: 1, marginBottom: '20px' }}>
+        <p style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: 'clamp(1.35rem, 3vw, 2rem)', color: 'var(--text-primary)', lineHeight: 1.05, marginBottom: '8px' }}>
+          NVR 7.7 AI Model
+        </p>
+        <p style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 'clamp(0.95rem, 2vw, 1.25rem)', background: 'linear-gradient(90deg, var(--accent), #22c55e)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: 1.25 }}>
+          World analysis, coding, design, and network intelligence
+        </p>
+      </div>
+
+      {/* Status */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
           <p style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>Intelligence Overview</p>
@@ -398,7 +408,7 @@ function HeroDashboard() {
         <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Recent Events</p>
         {[
           { type: 'DETECT', msg: 'Anomaly in feed #7 resolved', time: '0:04s' },
-          { type: 'TRAIN', msg: 'Model checkpoint saved v7.7.41', time: '1:12s' },
+          { type: 'TASK', msg: 'Project brief compiled', time: '1:12s' },
           { type: 'ALERT', msg: 'Threshold breach — zone A3', time: '2:48s' },
         ].map((e, i) => (
           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: i < 2 ? '1px solid var(--border)' : 'none' }}>

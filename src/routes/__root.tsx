@@ -1,4 +1,4 @@
-import { HeadContent, Scripts, createRootRoute, Outlet } from '@tanstack/react-router'
+import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import { Nav } from '../components/Nav'
 import '../styles.css'
 
@@ -8,7 +8,7 @@ export const Route = createRootRoute({
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { title: 'NVR 7.7 — AI-Powered Intelligence Platform' },
-      { name: 'description', content: 'NVR 7.7 delivers enterprise-grade AI intelligence for modern infrastructure. Real-time analysis, automated workflows, and deep insights at $25/month.' },
+      { name: 'description', content: 'NVR 7.7 delivers AI support for world analysis, coding, design prompts, network intelligence, and project work.' },
     ],
   }),
   shellComponent: RootDocument,
