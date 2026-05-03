@@ -14,6 +14,7 @@ import { Route as RefundRouteImport } from './routes/refund'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as GenerateRouteImport } from './routes/generate'
+import { Route as FeaturesRouteImport } from './routes/features'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ChatbotRouteImport } from './routes/chatbot'
@@ -43,6 +44,11 @@ const PricingRoute = PricingRouteImport.update({
 const GenerateRoute = GenerateRouteImport.update({
   id: '/generate',
   path: '/generate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeaturesRoute = FeaturesRouteImport.update({
+  id: '/features',
+  path: '/features',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FaqRoute = FaqRouteImport.update({
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/chatbot': typeof ChatbotRoute
   '/dashboard': typeof DashboardRoute
   '/faq': typeof FaqRoute
+  '/features': typeof FeaturesRoute
   '/generate': typeof GenerateRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/chatbot': typeof ChatbotRoute
   '/dashboard': typeof DashboardRoute
   '/faq': typeof FaqRoute
+  '/features': typeof FeaturesRoute
   '/generate': typeof GenerateRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/chatbot': typeof ChatbotRoute
   '/dashboard': typeof DashboardRoute
   '/faq': typeof FaqRoute
+  '/features': typeof FeaturesRoute
   '/generate': typeof GenerateRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/chatbot'
     | '/dashboard'
     | '/faq'
+    | '/features'
     | '/generate'
     | '/pricing'
     | '/privacy'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/chatbot'
     | '/dashboard'
     | '/faq'
+    | '/features'
     | '/generate'
     | '/pricing'
     | '/privacy'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/chatbot'
     | '/dashboard'
     | '/faq'
+    | '/features'
     | '/generate'
     | '/pricing'
     | '/privacy'
@@ -153,6 +165,7 @@ export interface RootRouteChildren {
   ChatbotRoute: typeof ChatbotRoute
   DashboardRoute: typeof DashboardRoute
   FaqRoute: typeof FaqRoute
+  FeaturesRoute: typeof FeaturesRoute
   GenerateRoute: typeof GenerateRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -195,6 +208,13 @@ declare module '@tanstack/react-router' {
       path: '/generate'
       fullPath: '/generate'
       preLoaderRoute: typeof GenerateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/features': {
+      id: '/features'
+      path: '/features'
+      fullPath: '/features'
+      preLoaderRoute: typeof FeaturesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/faq': {
@@ -241,6 +261,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChatbotRoute: ChatbotRoute,
   DashboardRoute: DashboardRoute,
   FaqRoute: FaqRoute,
+  FeaturesRoute: FeaturesRoute,
   GenerateRoute: GenerateRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,

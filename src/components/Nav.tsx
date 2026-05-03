@@ -76,6 +76,7 @@ export function Nav() {
           className="desktop-nav"
         >
           <NavLink to="/">Home</NavLink>
+          <NavLink to="/features">Features</NavLink>
           <NavLink to="/pricing">Pricing</NavLink>
           <NavLink to="/faq">FAQ</NavLink>
           <NavLink to="/agent">Agent</NavLink>
@@ -136,6 +137,7 @@ export function Nav() {
           }}
         >
           <MobileNavLink to="/" onClick={() => setMenuOpen(false)}>Home</MobileNavLink>
+          <MobileNavLink to="/features" onClick={() => setMenuOpen(false)}>Features</MobileNavLink>
           <MobileNavLink to="/pricing" onClick={() => setMenuOpen(false)}>Pricing</MobileNavLink>
           <MobileNavLink to="/faq" onClick={() => setMenuOpen(false)}>FAQ</MobileNavLink>
           <MobileNavLink to="/agent" onClick={() => setMenuOpen(false)}>Agent</MobileNavLink>
