@@ -230,7 +230,7 @@ function AgentMode() {
     abortRef.current = controller
 
     try {
-      const resp = await fetch('/agent/run', {
+      const resp = await fetch('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: trimmed }),

@@ -109,6 +109,7 @@ export function Nav() {
           <NavLink to="/">Home</NavLink>
           <NavLink to="/pricing">Pricing</NavLink>
           <NavLink to="/faq">FAQ</NavLink>
+          <NavLink to="/chatbot">Chat</NavLink>
           <NavLink to="/agent">Agent</NavLink>
           <NavLink to="/generate">Generate</NavLink>
         </nav>
@@ -175,6 +176,7 @@ export function Nav() {
           <MobileNavLink to="/" onClick={() => setMenuOpen(false)}>Home</MobileNavLink>
           <MobileNavLink to="/pricing" onClick={() => setMenuOpen(false)}>Pricing</MobileNavLink>
           <MobileNavLink to="/faq" onClick={() => setMenuOpen(false)}>FAQ</MobileNavLink>
+          <MobileNavLink to="/chatbot" onClick={() => setMenuOpen(false)}>Chat</MobileNavLink>
           <MobileNavLink to="/agent" onClick={() => setMenuOpen(false)}>Agent</MobileNavLink>
           <MobileNavLink to="/generate" onClick={() => setMenuOpen(false)}>Generate</MobileNavLink>
           <Link

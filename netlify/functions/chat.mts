@@ -1,12 +1,12 @@
 import type { Context } from '@netlify/functions'
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 
-const anthropic = new Anthropic()
+const openai = new OpenAI()
 
-type ChatMessage = { role: 'user' | 'assistant'; content: string }
+type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string }
 
 const SYSTEM_PROMPT =
-  'You are a helpful, concise AI assistant. Answer clearly using markdown when useful. Keep responses focused and friendly.'
+  "You are NVR 7.7 — a helpful, concise AI assistant. Answer clearly using markdown when useful. Keep responses focused and friendly."
 
 export default async (req: Request, _context: Context) => {
   if (req.method !== 'POST') {
@@ -22,7 +22,7 @@ export default async (req: Request, _context: Context) => {
           (m: unknown): m is ChatMessage =>
             !!m &&
             typeof m === 'object' &&
-            (((m as ChatMessage).role === 'user') || ((m as ChatMessage).role === 'assistant')) &&
+            ((m as ChatMessage).role === 'user' || (m as ChatMessage).role === 'assistant') &&
             typeof (m as ChatMessage).content === 'string',
         )
         .map((m) => ({ role: m.role, content: m.content.slice(0, 8000) }))
@@ -40,26 +40,19 @@ export default async (req: Request, _context: Context) => {
   const encoder = new TextEncoder()
 
   try {
-    const stream = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      messages,
+    const stream = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
       stream: true,
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages],
     })
 
     return new Response(
       new ReadableStream({
         async start(controller) {
           try {
-            for await (const event of stream) {
-              if (
-                event.type === 'content_block_delta' &&
-                event.delta.type === 'text_delta' &&
-                event.delta.text
-              ) {
-                controller.enqueue(encoder.encode(event.delta.text))
-              }
+            for await (const chunk of stream) {
+              const delta = chunk.choices[0]?.delta?.content
+              if (delta) controller.enqueue(encoder.encode(delta))
             }
           } catch (err) {
             const msg = err instanceof Error ? err.message : 'Stream error'
@@ -85,5 +78,5 @@ export default async (req: Request, _context: Context) => {
 }
 
 export const config = {
-  path: '/chat',
+  path: '/api/chat',
 }
