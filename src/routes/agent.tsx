@@ -316,9 +316,16 @@ function AgentMode() {
       />
 
       <div className="agent-grid">
-        <TaskPanel tasks={tasks} runState={runState} progressPct={progressPct} completedCount={completedCount} totalCount={totalCount} />
-
-        <ActivityPanel logs={logs} runState={runState} liveAction={liveAction} logEndRef={logEndRef} />
+        <MonitorPanel
+          tasks={tasks}
+          runState={runState}
+          progressPct={progressPct}
+          completedCount={completedCount}
+          totalCount={totalCount}
+          logs={logs}
+          liveAction={liveAction}
+          logEndRef={logEndRef}
+        />
 
         <ChatPanel
           chat={chat}
@@ -436,30 +443,43 @@ function ModelGlyph() {
 }
 
 // ---------------------------------------------------------------------------
-// Left: Task panel
+// Left: Live monitor panel (tasks + activity log combined)
 // ---------------------------------------------------------------------------
 
-function TaskPanel({
+function MonitorPanel({
   tasks,
   runState,
   progressPct,
   completedCount,
   totalCount,
+  logs,
+  liveAction,
+  logEndRef,
 }: {
   tasks: AgentTask[]
   runState: RunState
   progressPct: number
   completedCount: number
   totalCount: number
+  logs: LogLine[]
+  liveAction: string
+  logEndRef: React.RefObject<HTMLDivElement | null>
 }) {
   return (
-    <section className="panel">
+    <section className="panel monitor-panel">
       <header className="panel-head">
-        <span className="panel-eyebrow">Tasks</span>
+        <span className="panel-eyebrow">Live monitor</span>
         <span className="panel-count">
-          {completedCount}/{totalCount || '–'}
+          {completedCount}/{totalCount || '–'} tasks
         </span>
       </header>
+
+      <div className="live-action" title={liveAction}>
+        <span
+          className={runState === 'running' || runState === 'planning' ? 'pulse-dot' : 'pulse-dot static'}
+        />
+        <span className="live-action-text">{liveAction}</span>
+      </div>
 
       <div className="progress-track">
         <div
@@ -476,14 +496,33 @@ function TaskPanel({
         />
       </div>
 
-      <div className="task-list">
-        {tasks.length === 0 && runState === 'idle' && (
-          <div className="empty-block">No run in progress. Send a task to start.</div>
-        )}
-        {tasks.length === 0 && runState === 'planning' && <PlanSkeleton />}
-        {tasks.map((t, i) => (
-          <TaskRow key={t.id} task={t} index={i} />
-        ))}
+      <div className="monitor-section">
+        <div className="monitor-section-label">Tasks</div>
+        <div className="task-list">
+          {tasks.length === 0 && runState === 'idle' && (
+            <div className="empty-block">No run in progress. Send a task to start.</div>
+          )}
+          {tasks.length === 0 && runState === 'planning' && <PlanSkeleton />}
+          {tasks.map((t, i) => (
+            <TaskRow key={t.id} task={t} index={i} />
+          ))}
+        </div>
+      </div>
+
+      <div className="monitor-section monitor-section-stream">
+        <div className="monitor-section-label">
+          Activity
+          <span className="panel-count">
+            {logs.length} {logs.length === 1 ? 'event' : 'events'}
+          </span>
+        </div>
+        <div className="log-stream">
+          {logs.length === 0 && <div className="log-empty">Waiting for events…</div>}
+          {logs.map((line) => (
+            <LogRow key={line.id} line={line} />
+          ))}
+          <div ref={logEndRef} />
+        </div>
       </div>
     </section>
   )
@@ -548,48 +587,8 @@ function PlanSkeleton() {
 }
 
 // ---------------------------------------------------------------------------
-// Middle: Activity log
+// Activity log row
 // ---------------------------------------------------------------------------
-
-function ActivityPanel({
-  logs,
-  runState,
-  liveAction,
-  logEndRef,
-}: {
-  logs: LogLine[]
-  runState: RunState
-  liveAction: string
-  logEndRef: React.RefObject<HTMLDivElement | null>
-}) {
-  return (
-    <section className="panel">
-      <header className="panel-head">
-        <span className="panel-eyebrow">Live activity monitor</span>
-        <span className="panel-count">
-          {logs.length} {logs.length === 1 ? 'event' : 'events'}
-        </span>
-      </header>
-
-      <div className="live-action" title={liveAction}>
-        <span
-          className={runState === 'running' || runState === 'planning' ? 'pulse-dot' : 'pulse-dot static'}
-        />
-        <span className="live-action-text">{liveAction}</span>
-      </div>
-
-      <div className="log-stream">
-        {logs.length === 0 && (
-          <div className="log-empty">Waiting for events…</div>
-        )}
-        {logs.map((line) => (
-          <LogRow key={line.id} line={line} />
-        ))}
-        <div ref={logEndRef} />
-      </div>
-    </section>
-  )
-}
 
 function LogRow({ line }: { line: LogLine }) {
   const colorMap: Record<LogKind, string> = {
@@ -893,22 +892,36 @@ function AgentStyles() {
 
       .agent-grid {
         display: grid;
-        grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.4fr) minmax(280px, 1.1fr);
+        grid-template-columns: minmax(320px, 1.05fr) minmax(0, 1fr);
         gap: 16px;
         align-items: stretch;
       }
-      @media (max-width: 1100px) {
-        .agent-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-        .panel:first-of-type { grid-column: 1 / 2; }
-        .panel:nth-of-type(2) { grid-column: 2 / 3; }
-        .chat-panel { grid-column: 1 / 3; }
-      }
-      @media (max-width: 720px) {
+      @media (max-width: 960px) {
         .agent-grid { grid-template-columns: 1fr; }
-        .panel:first-of-type, .panel:nth-of-type(2), .chat-panel { grid-column: 1; }
+        .monitor-panel, .chat-panel { grid-column: 1; }
+        .panel { min-height: 420px; max-height: none; }
         .status-bar { grid-template-columns: 1fr; gap: 6px; padding: 12px; }
         .status-center { justify-content: flex-start; padding: 0; }
         .status-right { justify-content: flex-start; }
+      }
+
+      .monitor-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 14px;
+        min-height: 0;
+      }
+      .monitor-section-stream { flex: 1; min-height: 180px; }
+      .monitor-section-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: 'DM Mono', monospace;
+        font-size: 0.6875rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-muted);
       }
 
       .panel {
@@ -959,12 +972,12 @@ function AgentStyles() {
       }
 
       .task-list {
-        flex: 1;
         display: flex;
         flex-direction: column;
         gap: 8px;
         overflow-y: auto;
         padding-right: 4px;
+        max-height: 220px;
       }
       .empty-block {
         color: var(--text-muted);
