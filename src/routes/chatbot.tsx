@@ -35,6 +35,17 @@ function ChatBot() {
   }, [messages, isStreaming])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const seed = window.sessionStorage.getItem('nvr-chat-seed')
+      if (seed) {
+        window.sessionStorage.removeItem('nvr-chat-seed')
+        setInput(seed)
+      }
+    } catch {}
+  }, [])
+
+  useEffect(() => {
     const ta = textareaRef.current
     if (!ta) return
     ta.style.height = 'auto'
