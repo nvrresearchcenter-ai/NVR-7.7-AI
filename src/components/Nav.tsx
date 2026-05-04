@@ -20,29 +20,36 @@ export function Nav() {
         style={{
           maxWidth: '1200px',
           margin: '0 auto',
-          padding: '0 24px',
-          height: '64px',
+          padding: '0 20px',
+          height: '56px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '32px',
+          gap: '16px',
         }}
       >
         {/* Logo */}
         <Link
           to="/"
-          style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}
+          style={{
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            flexShrink: 0,
+          }}
         >
           <div
             style={{
-              width: '32px',
-              height: '32px',
+              width: '34px',
+              height: '34px',
               background: 'var(--accent)',
               borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
+              boxShadow: '0 0 16px rgba(0, 200, 240, 0.35)',
             }}
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -52,17 +59,40 @@ export function Nav() {
               <rect x="10" y="10" width="6" height="6" rx="1.5" fill="#060a12" opacity="0.3" />
             </svg>
           </div>
-          <span
+          <div
             style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              lineHeight: 1,
               fontFamily: 'Syne, sans-serif',
-              fontWeight: 800,
-              fontSize: '1.125rem',
-              color: 'var(--text-primary)',
-              letterSpacing: '-0.03em',
+              letterSpacing: '0.02em',
             }}
           >
-            NVR<span style={{ color: 'var(--accent)' }}> 7.7</span>
-          </span>
+            <span
+              style={{
+                fontWeight: 800,
+                fontSize: '0.95rem',
+                color: 'var(--text-primary)',
+                lineHeight: 1,
+              }}
+            >
+              NVR
+            </span>
+            <span
+              style={{
+                fontFamily: 'DM Mono, monospace',
+                fontWeight: 500,
+                fontSize: '0.7rem',
+                color: 'var(--accent)',
+                marginTop: '3px',
+                letterSpacing: '0.08em',
+                lineHeight: 1,
+              }}
+            >
+              7.7
+            </span>
+          </div>
         </Link>
 
         {/* Desktop Nav */}
@@ -70,8 +100,9 @@ export function Nav() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
+            gap: '4px',
             flex: 1,
+            justifyContent: 'center',
           }}
           className="desktop-nav"
         >
@@ -83,39 +114,45 @@ export function Nav() {
         </nav>
 
         {/* Right side */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <a href="/login" className="btn-ghost" style={{ padding: '8px 20px', fontSize: '0.8125rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <a
+            href="/login"
+            className="btn-ghost"
+            style={{ padding: '7px 16px', fontSize: '0.8125rem' }}
+          >
             Log in
           </a>
-          <Link to="/pricing" className="btn-primary" style={{ padding: '8px 20px', fontSize: '0.8125rem' }}>
-            Get Started
-          </Link>
 
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             style={{
               display: 'none',
-              background: 'none',
-              border: 'none',
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
               color: 'var(--text-primary)',
               cursor: 'pointer',
-              padding: '4px',
+              width: '38px',
+              height: '38px',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
             className="mobile-menu-btn"
             aria-label="Toggle menu"
+            aria-expanded={menuOpen}
           >
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               {menuOpen ? (
                 <>
-                  <line x1="4" y1="4" x2="18" y2="18" />
-                  <line x1="18" y1="4" x2="4" y2="18" />
+                  <line x1="5" y1="5" x2="17" y2="17" />
+                  <line x1="17" y1="5" x2="5" y2="17" />
                 </>
               ) : (
                 <>
-                  <line x1="3" y1="7" x2="19" y2="7" />
-                  <line x1="3" y1="12" x2="19" y2="12" />
-                  <line x1="3" y1="17" x2="19" y2="17" />
+                  <line x1="4" y1="7" x2="18" y2="7" />
+                  <line x1="4" y1="12" x2="18" y2="12" />
+                  <line x1="4" y1="17" x2="18" y2="17" />
                 </>
               )}
             </svg>
@@ -129,10 +166,10 @@ export function Nav() {
           style={{
             borderTop: '1px solid var(--border)',
             background: 'var(--bg-surface)',
-            padding: '16px 24px',
+            padding: '12px 20px 16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '4px',
+            gap: '2px',
           }}
         >
           <MobileNavLink to="/" onClick={() => setMenuOpen(false)}>Home</MobileNavLink>
@@ -140,14 +177,14 @@ export function Nav() {
           <MobileNavLink to="/faq" onClick={() => setMenuOpen(false)}>FAQ</MobileNavLink>
           <MobileNavLink to="/agent" onClick={() => setMenuOpen(false)}>Agent</MobileNavLink>
           <MobileNavLink to="/generate" onClick={() => setMenuOpen(false)}>Generate</MobileNavLink>
-          <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-            <a href="/login" className="btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: '10px 16px' }}>
-              Log in
-            </a>
-            <Link to="/pricing" className="btn-primary" style={{ flex: 1, justifyContent: 'center', padding: '10px 16px' }} onClick={() => setMenuOpen(false)}>
-              Get Started
-            </Link>
-          </div>
+          <Link
+            to="/pricing"
+            className="btn-primary"
+            style={{ marginTop: '12px', justifyContent: 'center', padding: '11px 16px' }}
+            onClick={() => setMenuOpen(false)}
+          >
+            Get Started
+          </Link>
         </div>
       )}
 
@@ -202,7 +239,7 @@ function MobileNavLink({ to, children, onClick }: { to: string; children: React.
       to={to}
       onClick={onClick}
       style={{
-        padding: '12px 16px',
+        padding: '12px 14px',
         borderRadius: '8px',
         color: 'var(--text-secondary)',
         textDecoration: 'none',
