@@ -1,3 +1,5 @@
+import { Link } from '@tanstack/react-router'
+
 export function Footer() {
   return (
     <footer
@@ -93,7 +95,7 @@ export function Footer() {
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <FooterLink href="/login">Log In</FooterLink>
-            <FooterLink href="/pricing">Sign Up</FooterLink>
+            <FooterLink href="/signup">Sign Up</FooterLink>
           </div>
         </div>
       </div>
@@ -126,18 +128,27 @@ export function Footer() {
 }
 
 function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const baseStyle = {
+    color: 'var(--text-muted)',
+    textDecoration: 'none',
+    fontSize: '0.875rem',
+    transition: 'color 0.15s',
+  } as const
+  const onEnter = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    ;(e.currentTarget as HTMLAnchorElement).style.color = 'var(--accent)'
+  }
+  const onLeave = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    ;(e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-muted)'
+  }
+  if (href.startsWith('/')) {
+    return (
+      <Link to={href} style={baseStyle} onMouseEnter={onEnter} onMouseLeave={onLeave}>
+        {children}
+      </Link>
+    )
+  }
   return (
-    <a
-      href={href}
-      style={{
-        color: 'var(--text-muted)',
-        textDecoration: 'none',
-        fontSize: '0.875rem',
-        transition: 'color 0.15s',
-      }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--accent)' }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-muted)' }}
-    >
+    <a href={href} style={baseStyle} onMouseEnter={onEnter} onMouseLeave={onLeave}>
       {children}
     </a>
   )

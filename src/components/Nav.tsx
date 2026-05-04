@@ -115,13 +115,13 @@ export function Nav() {
 
         {/* Right side */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          <a
-            href="/login"
+          <Link
+            to="/login"
             className="btn-ghost"
             style={{ padding: '7px 16px', fontSize: '0.8125rem' }}
           >
             Log in
-          </a>
+          </Link>
 
           {/* Mobile hamburger */}
           <button
@@ -178,9 +178,17 @@ export function Nav() {
           <MobileNavLink to="/agent" onClick={() => setMenuOpen(false)}>Agent</MobileNavLink>
           <MobileNavLink to="/generate" onClick={() => setMenuOpen(false)}>Generate</MobileNavLink>
           <Link
-            to="/pricing"
-            className="btn-primary"
+            to="/login"
+            className="btn-ghost"
             style={{ marginTop: '12px', justifyContent: 'center', padding: '11px 16px' }}
+            onClick={() => setMenuOpen(false)}
+          >
+            Log in
+          </Link>
+          <Link
+            to="/signup"
+            className="btn-primary"
+            style={{ marginTop: '8px', justifyContent: 'center', padding: '11px 16px' }}
             onClick={() => setMenuOpen(false)}
           >
             Get Started

@@ -402,8 +402,8 @@ function PlanCard({ plan }: { plan: Plan }) {
         Billed monthly · cancel any time
       </p>
 
-      <a
-        href="/login"
+      <Link
+        to="/signup"
         className={isHighlight || isSuper ? 'btn-primary' : 'btn-ghost'}
         style={{
           width: '100%',
@@ -421,7 +421,7 @@ function PlanCard({ plan }: { plan: Plan }) {
         }}
       >
         {plan.cta}
-      </a>
+      </Link>
 
       <div
         style={{
