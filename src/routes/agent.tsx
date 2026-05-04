@@ -15,7 +15,6 @@ type Step = {
   durationMs: number
   startedAt?: number
   completedAt?: number
-  /** Steps with side effects that mutate shared state. Gated by approval when Auto Mode is off. */
   critical?: boolean
 }
 
@@ -25,6 +24,10 @@ type LogLine = {
   kind: 'info' | 'tool' | 'result' | 'error' | 'plan' | 'agent' | 'decision'
   text: string
 }
+
+type ChatMessage =
+  | { id: string; role: 'user'; text: string }
+  | { id: string; role: 'agent'; text: string; kind?: 'intro' | 'closing' | 'note' }
 
 type RunState =
   | 'idle'
@@ -49,15 +52,15 @@ const TEMPLATES: Template[] = [
     label: 'Build a website',
     icon: '🌐',
     intro: () =>
-      `Got it — you want to ship a site. I'll scope the audience, draft the layout, then scaffold and preview-deploy. The deploy step touches a real environment, so I'll check with you before pushing it out.`,
+      `Got it — I'll scope the audience, draft the layout, scaffold components, and ship a preview. Deploy is a real-world action, so I'll check in before pushing.`,
     steps: [
-      { title: 'Analyze requirements', detail: 'Parse goal, audience, and core sections from the prompt.', durationMs: 1600 },
-      { title: 'Draft sitemap & layout', detail: 'Outline pages, hero structure, and navigation hierarchy.', durationMs: 2200 },
-      { title: 'Choose design system', detail: 'Pick palette, typography pairing, and component primitives.', durationMs: 1800 },
-      { title: 'Generate components', detail: 'Scaffold hero, features grid, pricing, and footer.', durationMs: 2600 },
-      { title: 'Wire up routing', detail: 'Configure file-based routes and active-link styling.', durationMs: 1500 },
-      { title: 'Run lint & type-check', detail: 'Validate TypeScript, ESLint, and accessibility checks.', durationMs: 2000 },
-      { title: 'Deploy preview', detail: 'Push to Netlify preview and emit a shareable URL.', durationMs: 2400, critical: true },
+      { title: 'Analyze requirements', detail: 'Parse goal, audience, and core sections.', durationMs: 1600 },
+      { title: 'Draft sitemap & layout', detail: 'Outline pages, hero structure, and nav.', durationMs: 2200 },
+      { title: 'Choose design system', detail: 'Palette, typography, and primitives.', durationMs: 1800 },
+      { title: 'Generate components', detail: 'Hero, features grid, pricing, footer.', durationMs: 2600 },
+      { title: 'Wire up routing', detail: 'File-based routes and active styles.', durationMs: 1500 },
+      { title: 'Run lint & type-check', detail: 'TypeScript, ESLint, a11y checks.', durationMs: 2000 },
+      { title: 'Deploy preview', detail: 'Push to Netlify preview, emit URL.', durationMs: 2400, critical: true },
     ],
   },
   {
@@ -65,15 +68,15 @@ const TEMPLATES: Template[] = [
     label: 'Fix backend error',
     icon: '🛠️',
     intro: () =>
-      `On it. I'll reproduce the failure, walk the stack to the root cause, and patch it with the smallest safe change. Two steps — applying the fix and shipping to staging — change real code, so I'll pause for your call before either.`,
+      `On it. I'll reproduce the failure, walk the stack to root cause, and patch with the smallest safe change. I'll pause before applying or shipping.`,
     steps: [
-      { title: 'Reproduce the failure', detail: 'Replay the failing request against a local handler.', durationMs: 1900 },
-      { title: 'Read recent logs', detail: 'Pull the last 200 lines around the first 5xx.', durationMs: 1500 },
-      { title: 'Locate offending module', detail: 'Walk the stack trace to the source frame.', durationMs: 1700 },
+      { title: 'Reproduce the failure', detail: 'Replay the failing request locally.', durationMs: 1900 },
+      { title: 'Read recent logs', detail: 'Pull the last 200 lines around the 5xx.', durationMs: 1500 },
+      { title: 'Locate offending module', detail: 'Walk the stack to the source frame.', durationMs: 1700 },
       { title: 'Form a hypothesis', detail: 'Identify the most likely root cause.', durationMs: 1300 },
-      { title: 'Apply targeted fix', detail: 'Patch the code with the smallest safe change.', durationMs: 2200, critical: true },
-      { title: 'Add regression test', detail: 'Cover the failing path with a deterministic test.', durationMs: 1800 },
-      { title: 'Verify in staging', detail: 'Run the suite and replay the original request.', durationMs: 2100, critical: true },
+      { title: 'Apply targeted fix', detail: 'Smallest safe change to the code.', durationMs: 2200, critical: true },
+      { title: 'Add regression test', detail: 'Cover the failing path deterministically.', durationMs: 1800 },
+      { title: 'Verify in staging', detail: 'Run the suite; replay the request.', durationMs: 2100, critical: true },
     ],
   },
   {
@@ -81,13 +84,13 @@ const TEMPLATES: Template[] = [
     label: 'Research & summarize',
     icon: '🔎',
     intro: () =>
-      `Good question to dig into. I'll decompose it, gather sources, score them for signal, then synthesize a brief with citations. This is read-only — nothing here touches real systems, so I'll run straight through.`,
+      `Good question to dig into. I'll decompose it, gather sources, score them, and synthesize a brief with citations. Read-only — running straight through.`,
     steps: [
-      { title: 'Decompose the question', detail: 'Break the prompt into searchable sub-queries.', durationMs: 1400 },
-      { title: 'Gather sources', detail: 'Crawl docs, forums, and primary references.', durationMs: 2200 },
-      { title: 'Score relevance', detail: 'Rank sources by recency, authority, and signal.', durationMs: 1600 },
+      { title: 'Decompose the question', detail: 'Break into searchable sub-queries.', durationMs: 1400 },
+      { title: 'Gather sources', detail: 'Crawl docs, forums, primary refs.', durationMs: 2200 },
+      { title: 'Score relevance', detail: 'Rank by recency, authority, signal.', durationMs: 1600 },
       { title: 'Extract key facts', detail: 'Pull cite-worthy quotes and figures.', durationMs: 1900 },
-      { title: 'Synthesize findings', detail: 'Compose a structured brief with citations.', durationMs: 2100 },
+      { title: 'Synthesize findings', detail: 'Compose a structured brief.', durationMs: 2100 },
     ],
   },
   {
@@ -95,13 +98,13 @@ const TEMPLATES: Template[] = [
     label: 'Deploy a release',
     icon: '🚀',
     intro: () =>
-      `Release run. I'll review the diff, run the suite, and build artifacts before anything goes out. The canary push and the promote-to-100% steps are real, user-facing changes — I'll need an explicit go from you on each.`,
+      `Release run. I'll review the diff, run tests, and build artifacts before anything goes out. Canary and promote are gated.`,
     steps: [
       { title: 'Review pending changes', detail: 'Diff main against the release branch.', durationMs: 1500 },
-      { title: 'Run full test suite', detail: 'Execute unit + integration + smoke tests.', durationMs: 2400 },
-      { title: 'Build artifacts', detail: 'Produce optimized production bundle.', durationMs: 2000 },
-      { title: 'Tag the release', detail: 'Cut a semver tag and update the changelog.', durationMs: 1300 },
-      { title: 'Push to production', detail: 'Roll out behind a 10% canary first.', durationMs: 2200, critical: true },
+      { title: 'Run full test suite', detail: 'Unit + integration + smoke.', durationMs: 2400 },
+      { title: 'Build artifacts', detail: 'Optimized production bundle.', durationMs: 2000 },
+      { title: 'Tag the release', detail: 'Cut a semver tag, update changelog.', durationMs: 1300 },
+      { title: 'Push to production', detail: 'Roll out behind a 10% canary.', durationMs: 2200, critical: true },
       { title: 'Watch error rate', detail: 'Hold for 5m, then promote to 100%.', durationMs: 1800, critical: true },
     ],
   },
@@ -110,13 +113,13 @@ const TEMPLATES: Template[] = [
     label: 'Run a data migration',
     icon: '🗄️',
     intro: () =>
-      `Migrations are easy to undo wrong, so I'll plan carefully: dry-run first, snapshot the table, then execute. Snapshot and execute both touch the live database — both are gated unless Auto Mode is on.`,
+      `Migrations are easy to undo wrong, so I'll dry-run, snapshot, and execute. Snapshot and execute both touch the live database — both gated.`,
     steps: [
-      { title: 'Inspect current schema', detail: 'Read the live schema and target diff.', durationMs: 1600 },
-      { title: 'Dry-run the migration', detail: 'Simulate against a clone, capture row counts.', durationMs: 2200 },
-      { title: 'Snapshot affected tables', detail: 'Take a point-in-time backup before mutation.', durationMs: 1800, critical: true },
-      { title: 'Execute migration', detail: 'Apply the change against production.', durationMs: 2400, critical: true },
-      { title: 'Verify integrity', detail: 'Re-run row counts and constraint checks.', durationMs: 1500 },
+      { title: 'Inspect current schema', detail: 'Read live schema; target diff.', durationMs: 1600 },
+      { title: 'Dry-run the migration', detail: 'Simulate against a clone.', durationMs: 2200 },
+      { title: 'Snapshot affected tables', detail: 'Point-in-time backup.', durationMs: 1800, critical: true },
+      { title: 'Execute migration', detail: 'Apply the change in production.', durationMs: 2400, critical: true },
+      { title: 'Verify integrity', detail: 'Re-run row counts and constraints.', durationMs: 1500 },
     ],
   },
 ]
@@ -126,13 +129,13 @@ const FALLBACK: Template = {
   label: 'General task',
   icon: '✨',
   intro: () =>
-    `I'll restate the goal so we're aligned, plan a small set of ordered actions, and execute them while narrating what I find. If anything looks like it would change real state, I'll pause and ask first.`,
+    `I'll restate the goal, plan a small set of ordered actions, and narrate as I work. If a step touches real state, I'll pause first.`,
   steps: [
-    { title: 'Understand the task', detail: 'Restate the goal and identify key constraints.', durationMs: 1500 },
-    { title: 'Plan an approach', detail: 'Break the work into 3–6 ordered actions.', durationMs: 1800 },
-    { title: 'Execute step-by-step', detail: 'Run actions in order, validating each result.', durationMs: 2400 },
-    { title: 'Self-review the output', detail: 'Check for gaps, errors, and clarity.', durationMs: 1500 },
-    { title: 'Deliver final result', detail: 'Package the answer and surface key takeaways.', durationMs: 1500 },
+    { title: 'Understand the task', detail: 'Restate goal; identify constraints.', durationMs: 1500 },
+    { title: 'Plan an approach', detail: 'Break into 3–6 ordered actions.', durationMs: 1800 },
+    { title: 'Execute step-by-step', detail: 'Run actions in order, validating each.', durationMs: 2400 },
+    { title: 'Self-review the output', detail: 'Check for gaps, errors, clarity.', durationMs: 1500 },
+    { title: 'Deliver final result', detail: 'Package and surface key takeaways.', durationMs: 1500 },
   ],
 }
 
@@ -141,7 +144,6 @@ const SUGGESTIONS = [
   { icon: '🛠️', text: 'Fix backend error on /api/checkout returning 500' },
   { icon: '🔎', text: 'Research the top 5 vector databases in 2026' },
   { icon: '🚀', text: 'Deploy the v2.4 release to production' },
-  { icon: '🗄️', text: 'Migrate the users table to add a phone column' },
 ]
 
 function pickTemplate(prompt: string): Template {
@@ -172,36 +174,51 @@ function AgentMode() {
   const [template, setTemplate] = useState<Template | null>(null)
   const [steps, setSteps] = useState<Step[]>([])
   const [logs, setLogs] = useState<LogLine[]>([])
+  const [chat, setChat] = useState<ChatMessage[]>([])
   const [runState, setRunState] = useState<RunState>('idle')
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [endedAt, setEndedAt] = useState<number | null>(null)
   const [now, setNow] = useState<number>(Date.now())
   const [autoMode, setAutoMode] = useState<boolean>(false)
-  const [intro, setIntro] = useState<string>('')
-  const [closing, setClosing] = useState<string>('')
   const [pendingApproval, setPendingApproval] = useState<number | null>(null)
 
   const cancelRef = useRef(false)
   const autoModeRef = useRef(autoMode)
-  const approvalResolverRef = useRef<((decision: 'approve' | 'skip' | 'stop') => void) | null>(null)
+  const approvalResolverRef = useRef<((d: 'approve' | 'skip' | 'stop') => void) | null>(null)
   const logEndRef = useRef<HTMLDivElement | null>(null)
+  const chatEndRef = useRef<HTMLDivElement | null>(null)
+  const startRunRef = useRef<((p: string) => void) | null>(null)
 
-  // Keep ref in sync so the running loop sees the live value
   useEffect(() => {
     autoModeRef.current = autoMode
   }, [autoMode])
 
-  // Live clock for in-flight elapsed time
   useEffect(() => {
     if (runState !== 'running' && runState !== 'planning' && runState !== 'awaiting') return
     const id = window.setInterval(() => setNow(Date.now()), 250)
     return () => window.clearInterval(id)
   }, [runState])
 
-  // Auto-scroll the log
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [logs.length])
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [chat.length])
+
+  // Pick up pending prompt forwarded from the homepage composer
+  useEffect(() => {
+    try {
+      const pending = sessionStorage.getItem('nvr.pendingPrompt')
+      if (pending) {
+        sessionStorage.removeItem('nvr.pendingPrompt')
+        setPrompt(pending)
+        setTimeout(() => startRunRef.current?.(pending), 150)
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const completedCount = useMemo(
     () => steps.filter((s) => s.status === 'completed' || s.status === 'skipped').length,
@@ -219,6 +236,10 @@ function AgentMode() {
     setLogs((prev) => [...prev, { id: uid(), ts: Date.now(), kind, text }])
   }
 
+  function pushChat(msg: ChatMessage) {
+    setChat((prev) => [...prev, msg])
+  }
+
   function reset() {
     cancelRef.current = true
     if (approvalResolverRef.current) {
@@ -227,14 +248,14 @@ function AgentMode() {
     }
     setSteps([])
     setLogs([])
+    setChat([])
     setTemplate(null)
     setActivePrompt('')
-    setIntro('')
-    setClosing('')
     setPendingApproval(null)
     setRunState('idle')
     setStartedAt(null)
     setEndedAt(null)
+    setPrompt('')
   }
 
   async function startRun(rawPrompt: string) {
@@ -247,9 +268,8 @@ function AgentMode() {
     setEndedAt(null)
     setLogs([])
     setSteps([])
-    setIntro('')
-    setClosing('')
     setPendingApproval(null)
+    pushChat({ id: uid(), role: 'user', text: trimmed })
 
     pushLog('info', `Received task: "${trimmed}"`)
     pushLog('agent', 'Reading the request and deciding how to break it down…')
@@ -259,7 +279,8 @@ function AgentMode() {
 
     const tpl = pickTemplate(trimmed)
     setTemplate(tpl)
-    setIntro(tpl.intro())
+    pushChat({ id: uid(), role: 'agent', kind: 'intro', text: tpl.intro() })
+
     const newSteps: Step[] = tpl.steps.map((s) => ({
       ...s,
       id: uid(),
@@ -275,17 +296,16 @@ function AgentMode() {
     if (criticalCount > 0 && !autoModeRef.current) {
       pushLog(
         'agent',
-        `Auto Mode is off — I'll pause before each of the ${criticalCount} side-effecting step${criticalCount === 1 ? '' : 's'} and wait for your call.`,
+        `Auto Mode is off — pausing before each of the ${criticalCount} side-effecting step${criticalCount === 1 ? '' : 's'}.`,
       )
     } else if (criticalCount > 0 && autoModeRef.current) {
-      pushLog('agent', `Auto Mode is on — I'll execute the ${criticalCount} critical step${criticalCount === 1 ? '' : 's'} without stopping.`)
+      pushLog('agent', `Auto Mode is on — executing the ${criticalCount} critical step${criticalCount === 1 ? '' : 's'} without stopping.`)
     }
 
     await wait(400)
     if (cancelRef.current) return
 
     setRunState('running')
-
     let skippedAny = false
 
     for (let i = 0; i < newSteps.length; i++) {
@@ -296,7 +316,6 @@ function AgentMode() {
       }
       const step = newSteps[i]
 
-      // Permission gate for critical steps when Auto Mode is off
       if (step.critical && !autoModeRef.current) {
         setSteps((prev) =>
           prev.map((s, idx) => (idx === i ? { ...s, status: 'awaiting' } : s)),
@@ -318,6 +337,7 @@ function AgentMode() {
           setRunState('cancelled')
           setEndedAt(Date.now())
           pushLog('error', 'Run stopped by user.')
+          pushChat({ id: uid(), role: 'agent', kind: 'note', text: 'Stopped on your call.' })
           return
         }
 
@@ -350,6 +370,7 @@ function AgentMode() {
         setRunState('cancelled')
         setEndedAt(Date.now())
         pushLog('error', 'Run cancelled by user.')
+        pushChat({ id: uid(), role: 'agent', kind: 'note', text: 'Run cancelled mid-step.' })
         return
       }
 
@@ -363,13 +384,18 @@ function AgentMode() {
 
     setRunState('completed')
     setEndedAt(Date.now())
-    setClosing(
-      skippedAny
-        ? `Done — finished the plan, with one or more steps skipped on your call. Want me to revisit them or move on?`
-        : `All steps cleared. Happy with the result, or should I dig deeper on any one of them?`,
-    )
+    pushChat({
+      id: uid(),
+      role: 'agent',
+      kind: 'closing',
+      text: skippedAny
+        ? `Done — finished the plan, with one or more steps skipped on your call. Want me to revisit them?`
+        : `All steps cleared. Happy with the result, or should I dig deeper?`,
+    })
     pushLog('agent', skippedAny ? 'Run complete with skipped steps.' : 'Run complete. Awaiting next instruction.')
   }
+
+  startRunRef.current = startRun
 
   function cancelRun() {
     if (runState === 'idle' || runState === 'completed') return
@@ -385,6 +411,9 @@ function AgentMode() {
     }
   }
 
+  const isBusy = runState === 'running' || runState === 'planning' || runState === 'awaiting'
+  const hasRun = runState !== 'idle' || steps.length > 0
+
   return (
     <div
       style={{
@@ -392,141 +421,105 @@ function AgentMode() {
         minHeight: 'calc(100vh - 64px)',
         background:
           'radial-gradient(ellipse 80% 40% at 50% -10%, rgba(0, 200, 240, 0.10) 0%, transparent 60%), var(--bg-base)',
-        paddingBottom: '64px',
+        paddingBottom: '48px',
       }}
     >
       <div
         style={{
-          maxWidth: '1200px',
+          maxWidth: '1280px',
           margin: '0 auto',
-          padding: '48px 24px 0',
+          padding: '32px 24px 0',
         }}
       >
-        {/* Header */}
         <div
           style={{
-            marginBottom: '32px',
+            marginBottom: '24px',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: '24px',
+            alignItems: 'center',
+            gap: '16px',
             flexWrap: 'wrap',
           }}
         >
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <span className="tag" style={{ marginBottom: '16px' }}>
+          <div>
+            <span className="tag">
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }} />
               Auto Agent Mode
             </span>
             <h1
               style={{
-                fontSize: 'clamp(2rem, 4vw, 2.75rem)',
-                margin: '12px 0 8px',
+                fontSize: 'clamp(1.5rem, 3vw, 2rem)',
+                margin: '10px 0 0',
                 color: 'var(--text-primary)',
               }}
             >
-              Describe a task. Watch the agent work.
+              Live agent run
             </h1>
-            <p
-              style={{
-                color: 'var(--text-secondary)',
-                fontSize: '1.0625rem',
-                maxWidth: '720px',
-                margin: 0,
-              }}
-            >
-              Give the agent a goal in plain English. It plans the work, narrates as it goes, and pauses to ask before
-              anything that touches real state — unless you flip Auto Mode on.
-            </p>
           </div>
           <AutoModeToggle value={autoMode} onChange={setAutoMode} />
         </div>
 
-        {/* Composer */}
-        <Composer
-          prompt={prompt}
-          setPrompt={setPrompt}
-          onRun={() => startRun(prompt)}
-          onCancel={cancelRun}
-          onReset={reset}
-          runState={runState}
-        />
+        <div className="agent-grid">
+          {/* LEFT — Live monitor */}
+          <MonitorPanel
+            runState={runState}
+            template={template}
+            activePrompt={activePrompt}
+            steps={steps}
+            completedCount={completedCount}
+            totalCount={totalCount}
+            progressPct={progressPct}
+            totalElapsed={totalElapsed}
+            now={now}
+            logs={logs}
+            logEndRef={logEndRef}
+            onStop={cancelRun}
+            isBusy={isBusy}
+          />
 
-        {/* Suggestions (only when idle) */}
-        {runState === 'idle' && steps.length === 0 && (
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '8px',
-              marginTop: '16px',
+          {/* RIGHT — Chat + controls */}
+          <ChatPanel
+            chat={chat}
+            chatEndRef={chatEndRef}
+            prompt={prompt}
+            setPrompt={setPrompt}
+            onSend={() => {
+              startRun(prompt)
+              setPrompt('')
             }}
-          >
-            {SUGGESTIONS.map((s) => (
-              <button
-                key={s.text}
-                onClick={() => {
-                  setPrompt(s.text)
-                  startRun(s.text)
-                }}
-                className="suggestion-chip"
-              >
-                <span style={{ fontSize: '1rem' }}>{s.icon}</span>
-                <span>{s.text}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Run panel */}
-        {(runState !== 'idle' || steps.length > 0) && (
-          <div
-            className="run-grid"
-            style={{
-              marginTop: '32px',
-              display: 'grid',
-              gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)',
-              gap: '20px',
-              alignItems: 'start',
+            onReset={reset}
+            runState={runState}
+            isBusy={isBusy}
+            hasRun={hasRun}
+            onSuggestion={(s) => {
+              setPrompt(s)
+              startRun(s)
             }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
-              {(intro || closing) && (
-                <AgentMessage
-                  intro={intro}
-                  closing={closing}
-                  template={template}
-                  runState={runState}
-                />
-              )}
-              <StepsPanel
-                activePrompt={activePrompt}
-                template={template}
-                steps={steps}
-                runState={runState}
-                completedCount={completedCount}
-                totalCount={totalCount}
-                progressPct={progressPct}
-                totalElapsed={totalElapsed}
-                now={now}
-                pendingApproval={pendingApproval}
-                onApprove={() => decide('approve')}
-                onSkip={() => decide('skip')}
-                onStop={cancelRun}
-              />
-            </div>
-            <LogPanel logs={logs} runState={runState} logEndRef={logEndRef} />
-          </div>
-        )}
+            pendingApproval={pendingApproval}
+            pendingStep={pendingApproval !== null ? steps[pendingApproval] : null}
+            onApprove={() => decide('approve')}
+            onSkip={() => decide('skip')}
+            onStop={cancelRun}
+          />
+        </div>
       </div>
 
       <style>{`
+        .agent-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+          gap: 20px;
+          align-items: start;
+        }
+        @media (max-width: 960px) {
+          .agent-grid { grid-template-columns: 1fr; }
+        }
         .suggestion-chip {
           display: inline-flex;
           align-items: center;
           gap: 8px;
           padding: 8px 14px;
-          background: var(--bg-surface);
+          background: var(--bg-elevated);
           border: 1px solid var(--border);
           border-radius: 999px;
           color: var(--text-secondary);
@@ -579,9 +572,7 @@ function AgentMode() {
           color: #f44763;
           border-color: rgba(244, 71, 99, 0.4);
         }
-        .step-row.skipped {
-          opacity: 0.65;
-        }
+        .step-row.skipped { opacity: 0.65; }
         .step-row.skipped .step-icon {
           background: var(--bg-surface);
           color: var(--text-muted);
@@ -597,22 +588,11 @@ function AgentMode() {
           color: #ffb800;
           border-color: rgba(255, 184, 0, 0.45);
         }
-        .step-connector {
-          position: absolute;
-          left: 19px;
-          top: 40px;
-          bottom: -12px;
-          width: 2px;
-          background: var(--border);
-        }
-        .step-connector.completed {
-          background: linear-gradient(180deg, var(--accent), var(--border));
-        }
         .approval-card {
-          margin-top: 10px;
-          padding: 14px 14px 12px;
+          margin-top: 12px;
+          padding: 14px;
           border: 1px solid rgba(255, 184, 0, 0.4);
-          border-radius: 10px;
+          border-radius: 12px;
           background: linear-gradient(180deg, rgba(255, 184, 0, 0.10) 0%, rgba(255, 184, 0, 0.03) 100%);
           animation: fadeIn 0.2s ease;
         }
@@ -630,35 +610,674 @@ function AgentMode() {
           color: #ffb800;
           border: 1px solid rgba(255, 184, 0, 0.35);
         }
-        @media (max-width: 880px) {
-          .run-grid { grid-template-columns: 1fr !important; }
+        .stop-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          background: rgba(244, 71, 99, 0.12);
+          color: #ff6e85;
+          border: 1px solid rgba(244, 71, 99, 0.45);
+          border-radius: 10px;
+          font-family: 'Syne', sans-serif;
+          font-weight: 600;
+          font-size: 0.8125rem;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .stop-btn:hover:not(:disabled) {
+          background: rgba(244, 71, 99, 0.2);
+          border-color: rgba(244, 71, 99, 0.7);
+          color: #ff8b9e;
+        }
+        .stop-btn:disabled {
+          opacity: 0.35;
+          cursor: not-allowed;
+        }
+        .composer-icon-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 38px;
+          height: 38px;
+          flex-shrink: 0;
+          background: transparent;
+          border: 1px solid transparent;
+          border-radius: 10px;
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .composer-icon-btn:hover {
+          color: var(--accent);
+          background: rgba(0, 200, 240, 0.08);
+          border-color: rgba(0, 200, 240, 0.2);
+        }
+        .composer-send-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          flex-shrink: 0;
+          background: var(--accent);
+          color: var(--bg-base);
+          border: none;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .composer-send-btn:hover:not(:disabled) {
+          background: #33d4f5;
+          box-shadow: 0 6px 18px rgba(0, 200, 240, 0.4);
+        }
+        .composer-send-btn:disabled {
+          opacity: 0.35;
+          cursor: not-allowed;
         }
       `}</style>
     </div>
   )
 }
 
-function AutoModeToggle({
-  value,
-  onChange,
+function MonitorPanel({
+  runState,
+  template,
+  activePrompt,
+  steps,
+  completedCount,
+  totalCount,
+  progressPct,
+  totalElapsed,
+  now,
+  logs,
+  logEndRef,
+  onStop,
+  isBusy,
 }: {
-  value: boolean
-  onChange: (v: boolean) => void
+  runState: RunState
+  template: Template | null
+  activePrompt: string
+  steps: Step[]
+  completedCount: number
+  totalCount: number
+  progressPct: number
+  totalElapsed: number
+  now: number
+  logs: LogLine[]
+  logEndRef: React.RefObject<HTMLDivElement | null>
+  onStop: () => void
+  isBusy: boolean
 }) {
+  const liveAction = useMemo(() => {
+    const running = steps.find((s) => s.status === 'running')
+    if (running) return running.title
+    const awaiting = steps.find((s) => s.status === 'awaiting')
+    if (awaiting) return `Awaiting approval: ${awaiting.title}`
+    if (runState === 'planning') return 'Planning the run…'
+    if (runState === 'completed') return 'Run complete'
+    if (runState === 'cancelled') return 'Stopped'
+    if (runState === 'failed') return 'Failed'
+    return 'Idle'
+  }, [steps, runState])
+
+  return (
+    <div
+      style={{
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border)',
+        borderRadius: '16px',
+        padding: '20px',
+        position: 'sticky',
+        top: '88px',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '12px',
+          marginBottom: '14px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div
+          style={{
+            fontFamily: 'DM Mono, monospace',
+            fontSize: '0.6875rem',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+          }}
+        >
+          Live Monitor
+        </div>
+        <button
+          className="stop-btn"
+          onClick={onStop}
+          disabled={!isBusy}
+          aria-label="Stop the agent"
+        >
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
+            <rect x="2.5" y="2.5" width="7" height="7" rx="1" />
+          </svg>
+          Stop
+        </button>
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          marginBottom: '6px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <RunBadge state={runState} />
+        {template && (
+          <span
+            style={{
+              fontFamily: 'DM Mono, monospace',
+              fontSize: '0.75rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            {template.icon} {template.label}
+          </span>
+        )}
+      </div>
+
+      <div
+        style={{
+          color: 'var(--text-primary)',
+          fontFamily: 'Syne, sans-serif',
+          fontWeight: 600,
+          fontSize: '1rem',
+          marginBottom: '4px',
+          minHeight: '1.4em',
+        }}
+        title={liveAction}
+      >
+        {liveAction}
+      </div>
+      {activePrompt && (
+        <div
+          style={{
+            color: 'var(--text-muted)',
+            fontSize: '0.8125rem',
+            marginBottom: '14px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={activePrompt}
+        >
+          “{activePrompt}”
+        </div>
+      )}
+
+      <div style={{ marginBottom: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace' }}>
+        <span>
+          {completedCount}/{totalCount || '–'} steps
+        </span>
+        <span>{fmtDuration(totalElapsed)} · {progressPct}%</span>
+      </div>
+      <div
+        style={{
+          height: '6px',
+          borderRadius: '3px',
+          background: 'var(--bg-elevated)',
+          overflow: 'hidden',
+          marginBottom: '20px',
+        }}
+      >
+        <div
+          className={runState === 'running' ? 'progress-bar-fill' : ''}
+          style={{
+            height: '100%',
+            width: `${progressPct}%`,
+            background:
+              runState === 'failed' || runState === 'cancelled'
+                ? '#f44763'
+                : runState === 'awaiting'
+                  ? '#ffb800'
+                  : runState === 'completed'
+                    ? 'var(--accent)'
+                    : undefined,
+            transition: 'width 0.4s ease',
+          }}
+        />
+      </div>
+
+      <div
+        style={{
+          fontFamily: 'DM Mono, monospace',
+          fontSize: '0.6875rem',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+          marginBottom: '10px',
+        }}
+      >
+        Live actions
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto' }}>
+        {steps.length === 0 && runState === 'planning' && <PlanningSkeleton />}
+        {steps.length === 0 && runState === 'idle' && (
+          <div
+            style={{
+              color: 'var(--text-muted)',
+              fontSize: '0.875rem',
+              padding: '24px 12px',
+              textAlign: 'center',
+              border: '1px dashed var(--border)',
+              borderRadius: '10px',
+            }}
+          >
+            No run in progress. Send a task to start.
+          </div>
+        )}
+        {steps.map((step, idx) => (
+          <StepRow key={step.id} step={step} index={idx} now={now} />
+        ))}
+      </div>
+
+      <div
+        style={{
+          marginTop: '20px',
+          fontFamily: 'DM Mono, monospace',
+          fontSize: '0.6875rem',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+          marginBottom: '8px',
+          display: 'flex',
+          justifyContent: 'space-between',
+        }}
+      >
+        <span>Activity log</span>
+        <span style={{ textTransform: 'none', letterSpacing: 0 }}>
+          {logs.length} {logs.length === 1 ? 'event' : 'events'}
+        </span>
+      </div>
+      <div
+        style={{
+          background: 'var(--bg-base)',
+          border: '1px solid var(--border)',
+          borderRadius: '10px',
+          padding: '10px 12px',
+          fontFamily: 'DM Mono, monospace',
+          fontSize: '0.75rem',
+          lineHeight: 1.6,
+          maxHeight: '240px',
+          minHeight: '120px',
+          overflowY: 'auto',
+        }}
+      >
+        {logs.length === 0 && (
+          <div style={{ color: 'var(--text-muted)' }}>Waiting for events…</div>
+        )}
+        {logs.map((line) => (
+          <LogRow key={line.id} line={line} />
+        ))}
+        <div ref={logEndRef} />
+      </div>
+    </div>
+  )
+}
+
+function ChatPanel({
+  chat,
+  chatEndRef,
+  prompt,
+  setPrompt,
+  onSend,
+  onReset,
+  runState,
+  isBusy,
+  hasRun,
+  onSuggestion,
+  pendingApproval,
+  pendingStep,
+  onApprove,
+  onSkip,
+  onStop,
+}: {
+  chat: ChatMessage[]
+  chatEndRef: React.RefObject<HTMLDivElement | null>
+  prompt: string
+  setPrompt: (s: string) => void
+  onSend: () => void
+  onReset: () => void
+  runState: RunState
+  isBusy: boolean
+  hasRun: boolean
+  onSuggestion: (s: string) => void
+  pendingApproval: number | null
+  pendingStep: Step | null
+  onApprove: () => void
+  onSkip: () => void
+  onStop: () => void
+}) {
+  const isDone = runState === 'completed' || runState === 'failed' || runState === 'cancelled'
+
+  return (
+    <div
+      style={{
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border)',
+        borderRadius: '16px',
+        padding: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '560px',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '14px',
+        }}
+      >
+        <div
+          style={{
+            fontFamily: 'DM Mono, monospace',
+            fontSize: '0.6875rem',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+          }}
+        >
+          Chat
+        </div>
+        {isDone && hasRun && (
+          <button
+            onClick={onReset}
+            className="btn-ghost"
+            style={{ padding: '6px 14px', fontSize: '0.75rem' }}
+          >
+            New task
+          </button>
+        )}
+      </div>
+
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          padding: '4px 2px',
+          marginBottom: '14px',
+          minHeight: '300px',
+        }}
+      >
+        {chat.length === 0 && (
+          <EmptyChat onSuggestion={onSuggestion} />
+        )}
+        {chat.map((m) => (
+          <ChatBubble key={m.id} message={m} />
+        ))}
+        {pendingApproval !== null && pendingStep && (
+          <ApprovalCard
+            step={pendingStep}
+            onApprove={onApprove}
+            onSkip={onSkip}
+            onStop={onStop}
+          />
+        )}
+        <div ref={chatEndRef} />
+      </div>
+
+      <div
+        style={{
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border)',
+          borderRadius: '14px',
+          padding: '6px 6px 6px 10px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+        }}
+      >
+        <button
+          type="button"
+          aria-label="Attach file"
+          className="composer-icon-btn"
+          disabled={isBusy}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+          </svg>
+        </button>
+        <input
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !isBusy) {
+              e.preventDefault()
+              onSend()
+            }
+          }}
+          disabled={isBusy}
+          placeholder={isBusy ? 'Agent is working…' : 'Send a task to the agent'}
+          style={{
+            flex: 1,
+            background: 'transparent',
+            border: 'none',
+            outline: 'none',
+            color: 'var(--text-primary)',
+            fontFamily: 'inherit',
+            fontSize: '0.9375rem',
+            padding: '10px 4px',
+            minWidth: 0,
+          }}
+        />
+        <button
+          type="button"
+          aria-label="Voice input"
+          className="composer-icon-btn"
+          disabled={isBusy}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="2" width="6" height="12" rx="3" />
+            <path d="M5 11a7 7 0 0 0 14 0" />
+            <line x1="12" y1="18" x2="12" y2="22" />
+            <line x1="9" y1="22" x2="15" y2="22" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          aria-label="Send"
+          onClick={onSend}
+          disabled={isBusy || !prompt.trim()}
+          className="composer-send-btn"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12" />
+            <polyline points="13 6 19 12 13 18" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function EmptyChat({ onSuggestion }: { onSuggestion: (s: string) => void }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: '12px',
+        padding: '12px 4px',
+      }}
+    >
+      <div
+        style={{
+          color: 'var(--text-secondary)',
+          fontSize: '0.9375rem',
+          lineHeight: 1.6,
+        }}
+      >
+        Send a task. The agent plans, narrates, and pauses before any action that touches real state.
+      </div>
+      <div
+        style={{
+          fontFamily: 'DM Mono, monospace',
+          fontSize: '0.6875rem',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+          marginTop: '8px',
+        }}
+      >
+        Try
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        {SUGGESTIONS.map((s) => (
+          <button
+            key={s.text}
+            onClick={() => onSuggestion(s.text)}
+            className="suggestion-chip"
+          >
+            <span style={{ fontSize: '1rem' }}>{s.icon}</span>
+            <span>{s.text}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ChatBubble({ message }: { message: ChatMessage }) {
+  if (message.role === 'user') {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div
+          style={{
+            maxWidth: '85%',
+            background: 'rgba(0, 200, 240, 0.12)',
+            border: '1px solid rgba(0, 200, 240, 0.3)',
+            color: 'var(--text-primary)',
+            padding: '10px 14px',
+            borderRadius: '14px 14px 4px 14px',
+            fontSize: '0.9375rem',
+            lineHeight: 1.55,
+          }}
+        >
+          {message.text}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div style={{ display: 'flex', gap: '10px' }}>
+      <div
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: '50%',
+          background: 'rgba(0, 200, 240, 0.12)',
+          border: '1px solid rgba(0, 200, 240, 0.35)',
+          color: 'var(--accent)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          fontFamily: 'Syne, sans-serif',
+          fontWeight: 700,
+          fontSize: '0.75rem',
+        }}
+      >
+        A
+      </div>
+      <div
+        style={{
+          maxWidth: '85%',
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border)',
+          color: 'var(--text-primary)',
+          padding: '10px 14px',
+          borderRadius: '4px 14px 14px 14px',
+          fontSize: '0.9375rem',
+          lineHeight: 1.55,
+        }}
+      >
+        {message.text}
+      </div>
+    </div>
+  )
+}
+
+function ApprovalCard({
+  step,
+  onApprove,
+  onSkip,
+  onStop,
+}: {
+  step: Step
+  onApprove: () => void
+  onSkip: () => void
+  onStop: () => void
+}) {
+  return (
+    <div className="approval-card">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+        <span className="critical-badge">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M5 1L9 8.5H1L5 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+            <circle cx="5" cy="6.5" r="0.6" fill="currentColor" />
+          </svg>
+          Critical action
+        </span>
+        <span style={{ fontFamily: 'DM Mono, monospace', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+          paused · awaiting your call
+        </span>
+      </div>
+      <div style={{ color: 'var(--text-primary)', fontSize: '0.9375rem', marginBottom: '4px' }}>
+        I'd like to <strong style={{ fontWeight: 600 }}>{step.title.toLowerCase()}</strong>.
+      </div>
+      <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', lineHeight: 1.5, marginBottom: '12px' }}>
+        {step.detail} This step changes real state, so checking with you first.
+      </div>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <button onClick={onApprove} className="btn-primary" style={{ padding: '7px 16px', fontSize: '0.8125rem' }}>
+          Approve
+        </button>
+        <button onClick={onSkip} className="btn-ghost" style={{ padding: '7px 16px', fontSize: '0.8125rem' }}>
+          Skip
+        </button>
+        <button onClick={onStop} className="stop-btn">
+          Stop run
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function AutoModeToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       onClick={() => onChange(!value)}
       aria-pressed={value}
       title={
         value
-          ? 'Auto Mode is on — the agent will execute critical steps without stopping.'
-          : 'Auto Mode is off — the agent will pause for approval on critical steps.'
+          ? 'Auto Mode is on — executes critical steps without stopping.'
+          : 'Auto Mode is off — pauses for approval on critical steps.'
       }
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         gap: '12px',
-        padding: '10px 14px',
+        padding: '8px 12px',
         background: value ? 'rgba(0, 200, 240, 0.08)' : 'var(--bg-surface)',
         border: `1px solid ${value ? 'rgba(0, 200, 240, 0.5)' : 'var(--border)'}`,
         borderRadius: '12px',
@@ -667,7 +1286,6 @@ function AutoModeToggle({
         fontSize: '0.8125rem',
         cursor: 'pointer',
         transition: 'all 0.2s ease',
-        flexShrink: 0,
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
@@ -714,429 +1332,6 @@ function AutoModeToggle({
   )
 }
 
-function AgentMessage({
-  intro,
-  closing,
-  template,
-  runState,
-}: {
-  intro: string
-  closing: string
-  template: Template | null
-  runState: RunState
-}) {
-  const text = closing || intro
-  if (!text) return null
-  return (
-    <div
-      style={{
-        display: 'flex',
-        gap: '12px',
-        padding: '16px',
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border)',
-        borderRadius: '14px',
-      }}
-    >
-      <div
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: '50%',
-          background: 'rgba(0, 200, 240, 0.12)',
-          border: '1px solid rgba(0, 200, 240, 0.35)',
-          color: 'var(--accent)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          fontSize: '0.875rem',
-          fontFamily: 'Syne, sans-serif',
-          fontWeight: 700,
-        }}
-      >
-        A
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontFamily: 'DM Mono, monospace',
-            fontSize: '0.6875rem',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-            marginBottom: '6px',
-          }}
-        >
-          Agent {template ? `· ${template.icon} ${template.label}` : ''}
-          {runState === 'completed' && ' · result'}
-        </div>
-        <div
-          style={{
-            color: 'var(--text-primary)',
-            fontSize: '0.9375rem',
-            lineHeight: 1.6,
-          }}
-        >
-          {text}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function Composer({
-  prompt,
-  setPrompt,
-  onRun,
-  onCancel,
-  onReset,
-  runState,
-}: {
-  prompt: string
-  setPrompt: (s: string) => void
-  onRun: () => void
-  onCancel: () => void
-  onReset: () => void
-  runState: RunState
-}) {
-  const isBusy = runState === 'running' || runState === 'planning' || runState === 'awaiting'
-  const isDone = runState === 'completed' || runState === 'failed' || runState === 'cancelled'
-
-  return (
-    <div
-      style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border)',
-        borderRadius: '16px',
-        padding: '4px',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      <textarea
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !isBusy) {
-            e.preventDefault()
-            onRun()
-          }
-        }}
-        disabled={isBusy}
-        placeholder="e.g. Build a marketing site for a developer tool, or fix the 500 on POST /api/orders"
-        rows={3}
-        style={{
-          width: '100%',
-          background: 'transparent',
-          border: 'none',
-          outline: 'none',
-          color: 'var(--text-primary)',
-          fontFamily: 'inherit',
-          fontSize: '1rem',
-          padding: '16px',
-          resize: 'none',
-          lineHeight: 1.55,
-        }}
-      />
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '8px 12px 12px',
-          gap: '12px',
-          flexWrap: 'wrap',
-        }}
-      >
-        <span
-          style={{
-            color: 'var(--text-muted)',
-            fontSize: '0.75rem',
-            fontFamily: 'DM Mono, monospace',
-            letterSpacing: '0.04em',
-          }}
-        >
-          ⌘ + ↵ to run
-        </span>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {isDone && (
-            <button
-              onClick={onReset}
-              className="btn-ghost"
-              style={{ padding: '8px 18px', fontSize: '0.8125rem' }}
-            >
-              New task
-            </button>
-          )}
-          {isBusy ? (
-            <button
-              onClick={onCancel}
-              className="btn-ghost"
-              style={{
-                padding: '8px 18px',
-                fontSize: '0.8125rem',
-                borderColor: 'rgba(244, 71, 99, 0.5)',
-                color: '#f44763',
-              }}
-            >
-              Cancel
-            </button>
-          ) : (
-            <button
-              onClick={onRun}
-              disabled={!prompt.trim()}
-              className="btn-primary"
-              style={{
-                padding: '8px 22px',
-                fontSize: '0.8125rem',
-                opacity: prompt.trim() ? 1 : 0.4,
-                cursor: prompt.trim() ? 'pointer' : 'not-allowed',
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M2 1.5L12 7L2 12.5V1.5Z" fill="currentColor" />
-              </svg>
-              Run agent
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function StepsPanel({
-  activePrompt,
-  template,
-  steps,
-  runState,
-  completedCount,
-  totalCount,
-  progressPct,
-  totalElapsed,
-  now,
-  pendingApproval,
-  onApprove,
-  onSkip,
-  onStop,
-}: {
-  activePrompt: string
-  template: Template | null
-  steps: Step[]
-  runState: RunState
-  completedCount: number
-  totalCount: number
-  progressPct: number
-  totalElapsed: number
-  now: number
-  pendingApproval: number | null
-  onApprove: () => void
-  onSkip: () => void
-  onStop: () => void
-}) {
-  return (
-    <div
-      style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border)',
-        borderRadius: '16px',
-        padding: '20px',
-      }}
-    >
-      {/* Header row */}
-      <div style={{ marginBottom: '16px' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: '12px',
-            marginBottom: '12px',
-          }}
-        >
-          <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                fontFamily: 'DM Mono, monospace',
-                fontSize: '0.6875rem',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                color: 'var(--text-muted)',
-                marginBottom: '4px',
-              }}
-            >
-              <RunBadge state={runState} /> · {template ? `${template.icon} ${template.label}` : 'Plan'}
-            </div>
-            <div
-              style={{
-                color: 'var(--text-primary)',
-                fontWeight: 500,
-                fontSize: '0.9375rem',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-              title={activePrompt}
-            >
-              {activePrompt || '—'}
-            </div>
-          </div>
-          <div
-            style={{
-              fontFamily: 'DM Mono, monospace',
-              fontSize: '0.8125rem',
-              color: 'var(--text-secondary)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {completedCount}/{totalCount || '–'} · {fmtDuration(totalElapsed)}
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        <div
-          style={{
-            height: '6px',
-            borderRadius: '3px',
-            background: 'var(--bg-elevated)',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            className={runState === 'running' ? 'progress-bar-fill' : ''}
-            style={{
-              height: '100%',
-              width: `${progressPct}%`,
-              background:
-                runState === 'failed' || runState === 'cancelled'
-                  ? '#f44763'
-                  : runState === 'awaiting'
-                    ? '#ffb800'
-                    : runState === 'completed'
-                      ? 'var(--accent)'
-                      : undefined,
-              transition: 'width 0.4s ease',
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Steps */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {steps.length === 0 && runState === 'planning' && <PlanningSkeleton />}
-        {steps.map((step, idx) => (
-          <div key={step.id}>
-            <StepRow
-              step={step}
-              index={idx}
-              isLast={idx === steps.length - 1}
-              now={now}
-            />
-            {pendingApproval === idx && (
-              <ApprovalCard
-                step={step}
-                onApprove={onApprove}
-                onSkip={onSkip}
-                onStop={onStop}
-              />
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function ApprovalCard({
-  step,
-  onApprove,
-  onSkip,
-  onStop,
-}: {
-  step: Step
-  onApprove: () => void
-  onSkip: () => void
-  onStop: () => void
-}) {
-  return (
-    <div className="approval-card">
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '6px',
-        }}
-      >
-        <span className="critical-badge">
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-            <path
-              d="M5 1L9 8.5H1L5 1Z"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              strokeLinejoin="round"
-            />
-            <circle cx="5" cy="6.5" r="0.6" fill="currentColor" />
-          </svg>
-          Critical action
-        </span>
-        <span
-          style={{
-            fontFamily: 'DM Mono, monospace',
-            fontSize: '0.75rem',
-            color: 'var(--text-muted)',
-          }}
-        >
-          paused · awaiting your call
-        </span>
-      </div>
-      <div style={{ color: 'var(--text-primary)', fontSize: '0.9375rem', marginBottom: '4px' }}>
-        I'd like to <strong style={{ fontWeight: 600 }}>{step.title.toLowerCase()}</strong>.
-      </div>
-      <div
-        style={{
-          color: 'var(--text-secondary)',
-          fontSize: '0.8125rem',
-          lineHeight: 1.5,
-          marginBottom: '12px',
-        }}
-      >
-        {step.detail} This step changes real state, so I'm checking with you first. You can flip Auto Mode on if you'd
-        rather not be asked again this run.
-      </div>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <button
-          onClick={onApprove}
-          className="btn-primary"
-          style={{ padding: '8px 18px', fontSize: '0.8125rem' }}
-        >
-          Approve & continue
-        </button>
-        <button
-          onClick={onSkip}
-          className="btn-ghost"
-          style={{ padding: '8px 18px', fontSize: '0.8125rem' }}
-        >
-          Skip this step
-        </button>
-        <button
-          onClick={onStop}
-          className="btn-ghost"
-          style={{
-            padding: '8px 18px',
-            fontSize: '0.8125rem',
-            borderColor: 'rgba(244, 71, 99, 0.5)',
-            color: '#f44763',
-          }}
-        >
-          Stop run
-        </button>
-      </div>
-    </div>
-  )
-}
-
 function RunBadge({ state }: { state: RunState }) {
   const map: Record<RunState, { label: string; color: string; dot: string }> = {
     idle: { label: 'Idle', color: 'var(--text-muted)', dot: 'var(--text-muted)' },
@@ -1149,12 +1344,12 @@ function RunBadge({ state }: { state: RunState }) {
   }
   const v = map[state]
   return (
-    <span style={{ color: v.color, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+    <span style={{ color: v.color, display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'DM Mono, monospace', fontSize: '0.75rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
       <span
         style={{
           display: 'inline-block',
-          width: 6,
-          height: 6,
+          width: 7,
+          height: 7,
           borderRadius: '50%',
           background: v.dot,
           animation:
@@ -1178,7 +1373,7 @@ function PlanningSkeleton() {
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
-            padding: '12px',
+            padding: '10px',
             border: '1px solid var(--border)',
             borderRadius: '10px',
             opacity: 0.5,
@@ -1188,8 +1383,8 @@ function PlanningSkeleton() {
         >
           <div
             style={{
-              width: 28,
-              height: 28,
+              width: 26,
+              height: 26,
               borderRadius: '50%',
               background: 'var(--bg-elevated)',
             }}
@@ -1198,7 +1393,7 @@ function PlanningSkeleton() {
             <div
               style={{
                 width: '40%',
-                height: 10,
+                height: 9,
                 background: 'var(--bg-elevated)',
                 borderRadius: 4,
                 marginBottom: 6,
@@ -1207,7 +1402,7 @@ function PlanningSkeleton() {
             <div
               style={{
                 width: '70%',
-                height: 8,
+                height: 7,
                 background: 'var(--bg-elevated)',
                 borderRadius: 4,
               }}
@@ -1222,12 +1417,10 @@ function PlanningSkeleton() {
 function StepRow({
   step,
   index,
-  isLast,
   now,
 }: {
   step: Step
   index: number
-  isLast: boolean
   now: number
 }) {
   const elapsed =
@@ -1243,19 +1436,14 @@ function StepRow({
       style={{
         position: 'relative',
         display: 'flex',
-        gap: '12px',
-        padding: '12px 14px',
+        gap: '10px',
+        padding: '10px 12px',
         border: '1px solid var(--border)',
         borderRadius: '10px',
         background: 'var(--bg-elevated)',
         transition: 'all 0.2s ease',
       }}
     >
-      {!isLast && (
-        <div
-          className={`step-connector ${step.status === 'completed' ? 'completed' : ''}`}
-        />
-      )}
       <StepIcon status={step.status} index={index} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
@@ -1263,19 +1451,11 @@ function StepRow({
             display: 'flex',
             justifyContent: 'space-between',
             gap: 12,
-            marginBottom: 2,
             alignItems: 'center',
+            marginBottom: 2,
           }}
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              minWidth: 0,
-              flex: 1,
-            }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
             <span
               style={{
                 fontWeight: 500,
@@ -1283,7 +1463,7 @@ function StepRow({
                   step.status === 'pending' || step.status === 'skipped'
                     ? 'var(--text-secondary)'
                     : 'var(--text-primary)',
-                fontSize: '0.9375rem',
+                fontSize: '0.875rem',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -1298,7 +1478,7 @@ function StepRow({
           <div
             style={{
               fontFamily: 'DM Mono, monospace',
-              fontSize: '0.75rem',
+              fontSize: '0.7rem',
               color: 'var(--text-muted)',
               whiteSpace: 'nowrap',
             }}
@@ -1314,7 +1494,7 @@ function StepRow({
         <div
           style={{
             color: 'var(--text-secondary)',
-            fontSize: '0.8125rem',
+            fontSize: '0.75rem',
             lineHeight: 1.5,
           }}
         >
@@ -1330,8 +1510,8 @@ function StepIcon({ status, index }: { status: StepStatus; index: number }) {
     <div
       className="step-icon"
       style={{
-        width: 28,
-        height: 28,
+        width: 26,
+        height: 26,
         borderRadius: '50%',
         flexShrink: 0,
         display: 'flex',
@@ -1340,146 +1520,39 @@ function StepIcon({ status, index }: { status: StepStatus; index: number }) {
         background: 'var(--bg-surface)',
         border: '1px solid var(--border)',
         color: 'var(--text-muted)',
-        fontSize: '0.75rem',
+        fontSize: '0.7rem',
         fontFamily: 'DM Mono, monospace',
         fontWeight: 500,
-        position: 'relative',
-        zIndex: 1,
       }}
     >
       {status === 'pending' && <span>{index + 1}</span>}
       {status === 'running' && (
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          style={{ animation: 'step-spin 1s linear infinite' }}
-        >
-          <circle
-            cx="8"
-            cy="8"
-            r="6"
-            stroke="var(--accent)"
-            strokeWidth="2"
-            fill="none"
-            strokeDasharray="28"
-            strokeDashoffset="14"
-            strokeLinecap="round"
-          />
+        <svg width="14" height="14" viewBox="0 0 16 16" style={{ animation: 'step-spin 1s linear infinite' }}>
+          <circle cx="8" cy="8" r="6" stroke="var(--accent)" strokeWidth="2" fill="none" strokeDasharray="28" strokeDashoffset="14" strokeLinecap="round" />
         </svg>
       )}
       {status === 'awaiting' && (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
           <path d="M7 1L13 12H1L7 1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
           <path d="M7 5.5V8.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
           <circle cx="7" cy="10.5" r="0.8" fill="currentColor" />
         </svg>
       )}
       {status === 'completed' && (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path
-            d="M2.5 7.5L5.5 10.5L11.5 4"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+          <path d="M2.5 7.5L5.5 10.5L11.5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       )}
       {status === 'skipped' && (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path
-            d="M3 7H11M11 7L8 4M11 7L8 10"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+          <path d="M3 7H11M11 7L8 4M11 7L8 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       )}
       {status === 'failed' && (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
           <path d="M3 3L9 9M9 3L3 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
       )}
-    </div>
-  )
-}
-
-function LogPanel({
-  logs,
-  runState,
-  logEndRef,
-}: {
-  logs: LogLine[]
-  runState: RunState
-  logEndRef: React.RefObject<HTMLDivElement | null>
-}) {
-  return (
-    <div
-      style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border)',
-        borderRadius: '16px',
-        padding: '20px',
-        maxHeight: '560px',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '12px',
-        }}
-      >
-        <div
-          style={{
-            fontFamily: 'DM Mono, monospace',
-            fontSize: '0.6875rem',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-          }}
-        >
-          Activity log
-        </div>
-        <div
-          style={{
-            fontFamily: 'DM Mono, monospace',
-            fontSize: '0.75rem',
-            color: 'var(--text-muted)',
-          }}
-        >
-          {logs.length} {logs.length === 1 ? 'event' : 'events'}
-        </div>
-      </div>
-      <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          background: 'var(--bg-base)',
-          border: '1px solid var(--border)',
-          borderRadius: '10px',
-          padding: '12px 14px',
-          fontFamily: 'DM Mono, monospace',
-          fontSize: '0.8125rem',
-          lineHeight: 1.6,
-          minHeight: '240px',
-        }}
-      >
-        {logs.length === 0 && (
-          <div style={{ color: 'var(--text-muted)' }}>
-            {runState === 'idle' ? 'Waiting for a task…' : 'Initializing…'}
-          </div>
-        )}
-        {logs.map((line) => (
-          <LogRow key={line.id} line={line} />
-        ))}
-        <div ref={logEndRef} />
-      </div>
     </div>
   )
 }
@@ -1507,16 +1580,14 @@ function LogRow({ line }: { line: LogLine }) {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '74px 44px 1fr',
-        gap: '8px',
+        gridTemplateColumns: '64px 38px 1fr',
+        gap: '6px',
         animation: 'fadeIn 0.25s ease',
       }}
     >
       <span style={{ color: 'var(--text-muted)' }}>{fmtClock(line.ts)}</span>
       <span style={{ color: colorMap[line.kind] }}>{labelMap[line.kind]}</span>
-      <span style={{ color: 'var(--text-primary)', wordBreak: 'break-word' }}>
-        {line.text}
-      </span>
+      <span style={{ color: 'var(--text-primary)', wordBreak: 'break-word' }}>{line.text}</span>
     </div>
   )
 }
