@@ -13,7 +13,7 @@ function Home() {
       <section
         style={{
           position: 'relative',
-          padding: '64px 24px 56px',
+          padding: '96px 24px 88px',
           minHeight: 'calc(100vh - 64px)',
           display: 'flex',
           alignItems: 'center',
@@ -52,57 +52,83 @@ function Home() {
             textAlign: 'center',
           }}
         >
-          {/* Brand */}
+          {/* Version badge */}
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '10px',
-              marginBottom: '14px',
+              gap: '8px',
+              padding: '6px 14px',
+              borderRadius: '999px',
+              border: '1px solid rgba(0, 200, 240, 0.25)',
+              background: 'rgba(0, 200, 240, 0.06)',
+              marginBottom: '28px',
+              fontFamily: 'DM Mono, monospace',
+              fontSize: '0.75rem',
+              letterSpacing: '0.14em',
+              color: 'var(--text-primary)',
+              textTransform: 'uppercase',
             }}
           >
             <span
+              aria-hidden
               style={{
-                width: '28px',
-                height: '28px',
-                background: 'var(--accent)',
-                borderRadius: '7px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                width: '7px',
+                height: '7px',
+                borderRadius: '999px',
+                background: 'var(--accent-live)',
+                boxShadow: '0 0 10px rgba(34, 197, 94, 0.9)',
               }}
-            >
-              <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
-                <rect x="2" y="2" width="6" height="6" rx="1.5" fill="#060a12" />
-                <rect x="10" y="2" width="6" height="6" rx="1.5" fill="#060a12" opacity="0.6" />
-                <rect x="2" y="10" width="6" height="6" rx="1.5" fill="#060a12" opacity="0.6" />
-                <rect x="10" y="10" width="6" height="6" rx="1.5" fill="#060a12" opacity="0.3" />
-              </svg>
-            </span>
-            <span
-              style={{
-                fontFamily: 'Syne, sans-serif',
-                fontWeight: 800,
-                fontSize: '1.25rem',
-                color: 'var(--text-primary)',
-                letterSpacing: '-0.03em',
-              }}
-            >
-              NVR<span style={{ color: 'var(--accent)' }}> 7.7</span>
-            </span>
+            />
+            Version 7.7 — Now Live
           </div>
 
-          {/* Tagline */}
-          <p
+          {/* Premium hero headline */}
+          <h1
+            className="home-hero-title"
             style={{
-              fontFamily: 'DM Mono, monospace',
-              fontSize: '0.8125rem',
-              color: 'var(--text-secondary)',
-              letterSpacing: '0.04em',
-              marginBottom: '28px',
+              fontFamily: 'Syne, sans-serif',
+              fontWeight: 800,
+              fontSize: 'clamp(2.5rem, 7.2vw, 5.25rem)',
+              lineHeight: 1.05,
+              letterSpacing: '-0.035em',
+              margin: '0 0 22px',
+              color: 'var(--text-primary)',
             }}
           >
-            AI assistant for analysis, coding, design, and network intelligence.
+            <span style={{ display: 'block' }}>AI intelligence for</span>
+            <span
+              className="hero-gradient-line"
+              style={{
+                display: 'block',
+                position: 'relative',
+                backgroundImage:
+                  'linear-gradient(110deg, #7fe8ff 0%, #00c8f0 35%, #4a8fff 70%, #7fe8ff 100%)',
+                WebkitBackgroundClip: 'text',
+                backgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                color: 'transparent',
+                filter: 'drop-shadow(0 0 28px rgba(0, 200, 240, 0.45))',
+              }}
+            >
+              every layer
+            </span>
+          </h1>
+
+          {/* Sub text */}
+          <p
+            className="home-hero-sub"
+            style={{
+              fontFamily: 'DM Sans, sans-serif',
+              fontSize: 'clamp(1rem, 1.6vw, 1.1875rem)',
+              lineHeight: 1.6,
+              color: 'var(--text-secondary)',
+              maxWidth: '640px',
+              margin: '0 auto 36px',
+            }}
+          >
+            NVR 7.7 combines world analysis, coding intelligence, design
+            generation, and network systems into one powerful AI workspace.
           </p>
 
           {/* Chat input */}
@@ -158,7 +184,9 @@ function Home() {
 
         <style>{`
           @media (max-width: 640px) {
-            .home-hero { padding: 40px 16px 48px; min-height: auto; }
+            .home-hero { padding: 56px 18px 64px; min-height: auto; }
+            .home-hero-title { letter-spacing: -0.025em !important; }
+            .home-hero-sub { margin-bottom: 28px !important; }
             .quick-prompts { display: none !important; }
           }
         `}</style>
