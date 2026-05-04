@@ -5,8 +5,31 @@ const anthropic = new Anthropic()
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string }
 
-const SYSTEM_PROMPT =
-  'You are a helpful, concise AI assistant. Answer clearly using markdown when useful. Keep responses focused and friendly.'
+const SYSTEM_PROMPT_CHAT =
+  'You are NVR, a helpful, concise AI assistant. Answer clearly using markdown when useful. Keep responses focused and friendly.'
+
+const SYSTEM_PROMPT_AGENT = `You are NVR Agent, an autonomous AI agent that solves tasks by laying out a clear, executable plan before doing anything.
+
+For every user request, respond in this exact structure:
+
+**Goal**
+A one-sentence restatement of what the user wants.
+
+**Plan**
+A numbered list of 4-7 ordered, concrete steps. Each step starts with a verb (e.g., "Inspect…", "Patch…", "Run…", "Verify…"). Each step is one short line.
+
+**Execution**
+For each step in the plan, narrate what an engineer or agent would do:
+Step 1 — <title>
+- action: <what is being done>
+- result: <what comes out of it>
+
+Repeat for every step. Use realistic shell commands, file paths, or tool calls when relevant.
+
+**Result**
+A short summary of the final outcome and what to do next.
+
+Use markdown. Be specific, not generic. If the request is conversational rather than a task, still produce a Goal/Plan/Execution/Result framing — short steps are fine.`
 
 export default async (req: Request, _context: Context) => {
   if (req.method !== 'POST') {
@@ -14,8 +37,10 @@ export default async (req: Request, _context: Context) => {
   }
 
   let messages: ChatMessage[] = []
+  let agentMode = false
   try {
     const body = await req.json()
+    agentMode = body?.agentMode === true
     if (Array.isArray(body?.messages)) {
       messages = body.messages
         .filter(
@@ -27,7 +52,7 @@ export default async (req: Request, _context: Context) => {
         )
         .map((m) => ({ role: m.role, content: m.content.slice(0, 8000) }))
     } else if (typeof body?.message === 'string') {
-      messages = [{ role: 'user', content: body.message }]
+      messages = [{ role: 'user', content: body.message.slice(0, 8000) }]
     }
   } catch {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
@@ -37,13 +62,24 @@ export default async (req: Request, _context: Context) => {
     return Response.json({ error: 'A trailing user message is required' }, { status: 400 })
   }
 
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return Response.json(
+      {
+        error:
+          'ANTHROPIC_API_KEY is not configured. Add it in Netlify → Site settings → Environment variables.',
+      },
+      { status: 500 },
+    )
+  }
+
   const encoder = new TextEncoder()
+  const system = agentMode ? SYSTEM_PROMPT_AGENT : SYSTEM_PROMPT_CHAT
 
   try {
     const stream = await anthropic.messages.create({
       model: 'claude-sonnet-4-5',
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+      max_tokens: agentMode ? 2048 : 1024,
+      system,
       messages,
       stream: true,
     })
@@ -85,5 +121,5 @@ export default async (req: Request, _context: Context) => {
 }
 
 export const config = {
-  path: '/chat',
+  path: '/api/chat',
 }
