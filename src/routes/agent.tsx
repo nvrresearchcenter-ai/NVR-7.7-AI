@@ -5,118 +5,123 @@ export const Route = createFileRoute('/agent')({
   component: AgentMode,
 })
 
-type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'awaiting'
+type RunState = 'idle' | 'planning' | 'running' | 'awaiting' | 'completed' | 'failed' | 'cancelled'
 
-type Step = {
+type ActionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'awaiting'
+
+type ActionKind =
+  | 'read'
+  | 'edit'
+  | 'update'
+  | 'build'
+  | 'deploy_preview'
+  | 'publish_live'
+  | 'rollback'
+  | 'delete'
+  | 'payment'
+  | 'dns'
+  | 'env'
+  | 'db_reset'
+  | 'analyze'
+  | 'plan'
+
+type Action = {
   id: string
+  kind: ActionKind
   title: string
   detail: string
-  status: StepStatus
   durationMs: number
+  status: ActionStatus
   startedAt?: number
   completedAt?: number
-  /** Steps with side effects that mutate shared state. Gated by approval when Auto Mode is off. */
+  /** Critical actions require explicit user approval before running. */
   critical?: boolean
+  /** When this action is a deploy, the simulated URL it produced. */
+  deployUrl?: string
+  /** When this action failed, the message describing why. */
+  errorMessage?: string
 }
 
-type LogLine = {
+type FollowUp = {
   id: string
-  ts: number
-  kind: 'info' | 'tool' | 'result' | 'error' | 'plan' | 'agent' | 'decision'
   text: string
+  ts: number
+  status: 'queued' | 'acknowledged'
 }
-
-type RunState =
-  | 'idle'
-  | 'planning'
-  | 'running'
-  | 'awaiting'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
 
 type Template = {
   match: RegExp
   label: string
-  icon: string
-  intro: () => string
-  steps: Omit<Step, 'id' | 'status' | 'startedAt' | 'completedAt'>[]
+  buildActions: () => Omit<Action, 'id' | 'status' | 'startedAt' | 'completedAt'>[]
 }
+
+const MODEL_NAME = 'NVR 9.9 Ultra Super Agent'
+
+const DEPLOY_PREVIEW_URL = 'https://preview-9f3a2.nvr77ai.netlify.app'
+const DEPLOY_LIVE_URL = 'https://nvr77ai.netlify.app'
 
 const TEMPLATES: Template[] = [
   {
-    match: /(build|create|make|design).*(website|landing|site|page)|website|landing/i,
-    label: 'Build a website',
-    icon: '🌐',
-    intro: () =>
-      `Got it — you want to ship a site. I'll scope the audience, draft the layout, then scaffold and preview-deploy. The deploy step touches a real environment, so I'll check with you before pushing it out.`,
-    steps: [
-      { title: 'Analyze requirements', detail: 'Parse goal, audience, and core sections from the prompt.', durationMs: 1600 },
-      { title: 'Draft sitemap & layout', detail: 'Outline pages, hero structure, and navigation hierarchy.', durationMs: 2200 },
-      { title: 'Choose design system', detail: 'Pick palette, typography pairing, and component primitives.', durationMs: 1800 },
-      { title: 'Generate components', detail: 'Scaffold hero, features grid, pricing, and footer.', durationMs: 2600 },
-      { title: 'Wire up routing', detail: 'Configure file-based routes and active-link styling.', durationMs: 1500 },
-      { title: 'Run lint & type-check', detail: 'Validate TypeScript, ESLint, and accessibility checks.', durationMs: 2000 },
-      { title: 'Deploy preview', detail: 'Push to Netlify preview and emit a shareable URL.', durationMs: 2400, critical: true },
+    match: /(redesign|rebuild|update|edit|change|move|add).*(home|hero|landing|page|pricing|section|nav|footer)|homepage|hero|landing/i,
+    label: 'Update homepage layout',
+    buildActions: () => [
+      { kind: 'read', title: 'Reading project files', detail: 'src/routes/index.tsx · src/routes/pricing.tsx · src/styles.css', durationMs: 1600 },
+      { kind: 'analyze', title: 'Analyzing current layout', detail: 'Mapping hero, pricing, and feature sections.', durationMs: 1400 },
+      { kind: 'edit', title: 'Updated homepage hero', detail: 'Reworked headline, supporting copy, and CTAs.', durationMs: 2000 },
+      { kind: 'edit', title: 'Moved pricing section', detail: 'Promoted the pricing teaser above the feature grid.', durationMs: 1700 },
+      { kind: 'update', title: 'Updated Nav components', detail: 'Refreshed active state styling and mobile menu.', durationMs: 1500 },
+      { kind: 'edit', title: 'Added chat input', detail: 'Inserted the assistant composer into the hero block.', durationMs: 1900 },
+      { kind: 'build', title: 'Running build', detail: 'TypeScript + Vite production build.', durationMs: 2400 },
+      { kind: 'deploy_preview', title: 'Created live preview', detail: 'Pushed bundle to Netlify deploy preview.', durationMs: 2200 },
+      { kind: 'publish_live', title: 'Ready to publish', detail: 'Promote the preview to the production URL.', durationMs: 2000, critical: true },
     ],
   },
   {
-    match: /(fix|debug|resolve|investigate).*(error|bug|issue|crash|500|backend|api|server)|backend\s+error/i,
-    label: 'Fix backend error',
-    icon: '🛠️',
-    intro: () =>
-      `On it. I'll reproduce the failure, walk the stack to the root cause, and patch it with the smallest safe change. Two steps — applying the fix and shipping to staging — change real code, so I'll pause for your call before either.`,
-    steps: [
-      { title: 'Reproduce the failure', detail: 'Replay the failing request against a local handler.', durationMs: 1900 },
-      { title: 'Read recent logs', detail: 'Pull the last 200 lines around the first 5xx.', durationMs: 1500 },
-      { title: 'Locate offending module', detail: 'Walk the stack trace to the source frame.', durationMs: 1700 },
-      { title: 'Form a hypothesis', detail: 'Identify the most likely root cause.', durationMs: 1300 },
-      { title: 'Apply targeted fix', detail: 'Patch the code with the smallest safe change.', durationMs: 2200, critical: true },
-      { title: 'Add regression test', detail: 'Cover the failing path with a deterministic test.', durationMs: 1800 },
-      { title: 'Verify in staging', detail: 'Run the suite and replay the original request.', durationMs: 2100, critical: true },
-    ],
-  },
-  {
-    match: /research|summari[sz]e|investigate|compare|analy[sz]e/i,
-    label: 'Research & summarize',
-    icon: '🔎',
-    intro: () =>
-      `Good question to dig into. I'll decompose it, gather sources, score them for signal, then synthesize a brief with citations. This is read-only — nothing here touches real systems, so I'll run straight through.`,
-    steps: [
-      { title: 'Decompose the question', detail: 'Break the prompt into searchable sub-queries.', durationMs: 1400 },
-      { title: 'Gather sources', detail: 'Crawl docs, forums, and primary references.', durationMs: 2200 },
-      { title: 'Score relevance', detail: 'Rank sources by recency, authority, and signal.', durationMs: 1600 },
-      { title: 'Extract key facts', detail: 'Pull cite-worthy quotes and figures.', durationMs: 1900 },
-      { title: 'Synthesize findings', detail: 'Compose a structured brief with citations.', durationMs: 2100 },
-    ],
-  },
-  {
-    match: /deploy|ship|release|publish/i,
+    match: /deploy|publish|ship|release|go live/i,
     label: 'Deploy a release',
-    icon: '🚀',
-    intro: () =>
-      `Release run. I'll review the diff, run the suite, and build artifacts before anything goes out. The canary push and the promote-to-100% steps are real, user-facing changes — I'll need an explicit go from you on each.`,
-    steps: [
-      { title: 'Review pending changes', detail: 'Diff main against the release branch.', durationMs: 1500 },
-      { title: 'Run full test suite', detail: 'Execute unit + integration + smoke tests.', durationMs: 2400 },
-      { title: 'Build artifacts', detail: 'Produce optimized production bundle.', durationMs: 2000 },
-      { title: 'Tag the release', detail: 'Cut a semver tag and update the changelog.', durationMs: 1300 },
-      { title: 'Push to production', detail: 'Roll out behind a 10% canary first.', durationMs: 2200, critical: true },
-      { title: 'Watch error rate', detail: 'Hold for 5m, then promote to 100%.', durationMs: 1800, critical: true },
+    buildActions: () => [
+      { kind: 'read', title: 'Reading project files', detail: 'Loading the current build manifest.', durationMs: 1300 },
+      { kind: 'analyze', title: 'Reviewing pending changes', detail: 'Diffing main against the release branch.', durationMs: 1600 },
+      { kind: 'build', title: 'Running build', detail: 'Compiling production bundle.', durationMs: 2400 },
+      { kind: 'deploy_preview', title: 'Deploying preview', detail: 'Smoke-testing on a Netlify preview channel.', durationMs: 2200 },
+      { kind: 'publish_live', title: 'Publishing to production', detail: 'Promoting preview to live.', durationMs: 2000, critical: true },
     ],
   },
   {
-    match: /migrat|schema|database|sql|alembic|prisma/i,
-    label: 'Run a data migration',
-    icon: '🗄️',
-    intro: () =>
-      `Migrations are easy to undo wrong, so I'll plan carefully: dry-run first, snapshot the table, then execute. Snapshot and execute both touch the live database — both are gated unless Auto Mode is on.`,
-    steps: [
-      { title: 'Inspect current schema', detail: 'Read the live schema and target diff.', durationMs: 1600 },
-      { title: 'Dry-run the migration', detail: 'Simulate against a clone, capture row counts.', durationMs: 2200 },
-      { title: 'Snapshot affected tables', detail: 'Take a point-in-time backup before mutation.', durationMs: 1800, critical: true },
-      { title: 'Execute migration', detail: 'Apply the change against production.', durationMs: 2400, critical: true },
-      { title: 'Verify integrity', detail: 'Re-run row counts and constraint checks.', durationMs: 1500 },
+    match: /delete|drop|reset|wipe|remove.*(database|table|account|user)/i,
+    label: 'Destructive data operation',
+    buildActions: () => [
+      { kind: 'read', title: 'Reading affected resources', detail: 'Inspecting target rows and dependencies.', durationMs: 1700 },
+      { kind: 'analyze', title: 'Estimating blast radius', detail: 'Counting downstream references.', durationMs: 1500 },
+      { kind: 'db_reset', title: 'Reset database', detail: 'Drop and recreate the target schema.', durationMs: 2400, critical: true },
+    ],
+  },
+  {
+    match: /(env|environment|secret|key).*(set|update|rotate|change)|set environment variable/i,
+    label: 'Update environment variables',
+    buildActions: () => [
+      { kind: 'read', title: 'Reading current environment', detail: 'Listing variables on the production context.', durationMs: 1400 },
+      { kind: 'env', title: 'Update environment variables', detail: 'Apply the new variable set to production.', durationMs: 2000, critical: true },
+      { kind: 'build', title: 'Running build', detail: 'Rebuild against the updated environment.', durationMs: 2200 },
+      { kind: 'deploy_preview', title: 'Created live preview', detail: 'Verified preview boots with the new values.', durationMs: 2000 },
+    ],
+  },
+  {
+    match: /domain|dns|cname|nameserver|record/i,
+    label: 'Update DNS records',
+    buildActions: () => [
+      { kind: 'read', title: 'Reading DNS zone', detail: 'Loading the current zone file.', durationMs: 1500 },
+      { kind: 'analyze', title: 'Validating record set', detail: 'Checking propagation rules.', durationMs: 1400 },
+      { kind: 'dns', title: 'Apply DNS changes', detail: 'Write CNAME / A records to the live zone.', durationMs: 2200, critical: true },
+    ],
+  },
+  {
+    match: /payment|charge|refund|stripe|invoice/i,
+    label: 'Process a payment action',
+    buildActions: () => [
+      { kind: 'read', title: 'Reading customer record', detail: 'Pulling the related charge from Stripe.', durationMs: 1500 },
+      { kind: 'analyze', title: 'Verifying amount & currency', detail: 'Cross-checking against the source invoice.', durationMs: 1500 },
+      { kind: 'payment', title: 'Process payment action', detail: 'Capture / refund a real customer charge.', durationMs: 2200, critical: true },
     ],
   },
 ]
@@ -124,24 +129,23 @@ const TEMPLATES: Template[] = [
 const FALLBACK: Template = {
   match: /.*/,
   label: 'General task',
-  icon: '✨',
-  intro: () =>
-    `I'll restate the goal so we're aligned, plan a small set of ordered actions, and execute them while narrating what I find. If anything looks like it would change real state, I'll pause and ask first.`,
-  steps: [
-    { title: 'Understand the task', detail: 'Restate the goal and identify key constraints.', durationMs: 1500 },
-    { title: 'Plan an approach', detail: 'Break the work into 3–6 ordered actions.', durationMs: 1800 },
-    { title: 'Execute step-by-step', detail: 'Run actions in order, validating each result.', durationMs: 2400 },
-    { title: 'Self-review the output', detail: 'Check for gaps, errors, and clarity.', durationMs: 1500 },
-    { title: 'Deliver final result', detail: 'Package the answer and surface key takeaways.', durationMs: 1500 },
+  buildActions: () => [
+    { kind: 'read', title: 'Reading files', detail: 'Scanning the project for relevant context.', durationMs: 1500 },
+    { kind: 'analyze', title: 'Planning approach', detail: 'Breaking the request into ordered steps.', durationMs: 1500 },
+    { kind: 'edit', title: 'Editing UI', detail: 'Applying the requested changes.', durationMs: 2000 },
+    { kind: 'update', title: 'Updating components', detail: 'Refreshing affected component code.', durationMs: 1700 },
+    { kind: 'build', title: 'Running build', detail: 'TypeScript + Vite production build.', durationMs: 2200 },
+    { kind: 'deploy_preview', title: 'Created live preview', detail: 'Pushed bundle to a Netlify preview channel.', durationMs: 2000 },
+    { kind: 'publish_live', title: 'Ready to publish', detail: 'Promote the preview to the production URL.', durationMs: 1800, critical: true },
   ],
 }
 
 const SUGGESTIONS = [
-  { icon: '🌐', text: 'Build a website for an indie coffee shop' },
-  { icon: '🛠️', text: 'Fix backend error on /api/checkout returning 500' },
-  { icon: '🔎', text: 'Research the top 5 vector databases in 2026' },
-  { icon: '🚀', text: 'Deploy the v2.4 release to production' },
-  { icon: '🗄️', text: 'Migrate the users table to add a phone column' },
+  'Redesign the homepage hero',
+  'Move the pricing section higher',
+  'Deploy the latest changes live',
+  'Set environment variable STRIPE_KEY',
+  'Update DNS for nvr77ai.com',
 ]
 
 function pickTemplate(prompt: string): Template {
@@ -153,88 +157,127 @@ function uid() {
   return Math.random().toString(36).slice(2, 10)
 }
 
-function fmtDuration(ms: number) {
-  if (ms < 1000) return `${ms}ms`
-  return `${(ms / 1000).toFixed(1)}s`
+function fmtClock(ms: number) {
+  const total = Math.max(0, Math.floor(ms / 1000))
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return m > 0 ? `${m}m ${s.toString().padStart(2, '0')}s` : `${s}s`
 }
 
-function fmtClock(ts: number) {
+function fmtTimestamp(ts: number) {
   const d = new Date(ts)
-  const hh = d.getHours().toString().padStart(2, '0')
-  const mm = d.getMinutes().toString().padStart(2, '0')
-  const ss = d.getSeconds().toString().padStart(2, '0')
-  return `${hh}:${mm}:${ss}`
+  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes()
+    .toString()
+    .padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`
+}
+
+function isCriticalKind(k: ActionKind) {
+  return (
+    k === 'publish_live' ||
+    k === 'delete' ||
+    k === 'payment' ||
+    k === 'dns' ||
+    k === 'env' ||
+    k === 'db_reset'
+  )
+}
+
+function approvalCopy(kind: ActionKind, title: string): { question: string; warning: string } {
+  switch (kind) {
+    case 'publish_live':
+      return {
+        question: 'Approve live deploy?',
+        warning: 'This promotes the current preview to production and replaces the live site for every visitor.',
+      }
+    case 'delete':
+      return {
+        question: 'Approve deletion?',
+        warning: 'Deletion cannot be undone from this UI. The agent will remove the targeted records permanently.',
+      }
+    case 'payment':
+      return {
+        question: 'Approve payment action?',
+        warning: 'This moves real money via the connected Stripe account. Refunds and captures are not reversible from here.',
+      }
+    case 'dns':
+      return {
+        question: 'Approve DNS change?',
+        warning: 'DNS updates can break the live domain. Propagation may take up to 24 hours and is hard to roll back instantly.',
+      }
+    case 'env':
+      return {
+        question: 'Approve environment variable update?',
+        warning: 'Production builds will rebuild against the new values. Misconfigured secrets can take the site offline.',
+      }
+    case 'db_reset':
+      return {
+        question: 'Approve database reset?',
+        warning: 'This drops and recreates the target schema. All rows in the affected tables will be lost.',
+      }
+    default:
+      return {
+        question: `Approve: ${title}?`,
+        warning: 'This action changes real production state.',
+      }
+  }
 }
 
 function AgentMode() {
   const [prompt, setPrompt] = useState('')
   const [activePrompt, setActivePrompt] = useState('')
-  const [template, setTemplate] = useState<Template | null>(null)
-  const [steps, setSteps] = useState<Step[]>([])
-  const [logs, setLogs] = useState<LogLine[]>([])
+  const [actions, setActions] = useState<Action[]>([])
+  const [followUps, setFollowUps] = useState<FollowUp[]>([])
   const [runState, setRunState] = useState<RunState>('idle')
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [endedAt, setEndedAt] = useState<number | null>(null)
   const [now, setNow] = useState<number>(Date.now())
-  const [autoMode, setAutoMode] = useState<boolean>(false)
-  const [intro, setIntro] = useState<string>('')
-  const [closing, setClosing] = useState<string>('')
   const [pendingApproval, setPendingApproval] = useState<number | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [liveUrl, setLiveUrl] = useState<string | null>(null)
 
   const cancelRef = useRef(false)
-  const autoModeRef = useRef(autoMode)
-  const approvalResolverRef = useRef<((decision: 'approve' | 'skip' | 'stop') => void) | null>(null)
-  const logEndRef = useRef<HTMLDivElement | null>(null)
+  const approvalResolverRef = useRef<((d: 'approve' | 'cancel') => void) | null>(null)
+  const monitorRef = useRef<HTMLDivElement | null>(null)
 
-  // Keep ref in sync so the running loop sees the live value
-  useEffect(() => {
-    autoModeRef.current = autoMode
-  }, [autoMode])
-
-  // Live clock for in-flight elapsed time
+  // Live clock for timer / running status
   useEffect(() => {
     if (runState !== 'running' && runState !== 'planning' && runState !== 'awaiting') return
     const id = window.setInterval(() => setNow(Date.now()), 250)
     return () => window.clearInterval(id)
   }, [runState])
 
-  // Auto-scroll the log
+  // Auto-scroll the action monitor as new actions arrive
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [logs.length])
+    monitorRef.current?.scrollTo({ top: monitorRef.current.scrollHeight, behavior: 'smooth' })
+  }, [actions.length])
 
   const completedCount = useMemo(
-    () => steps.filter((s) => s.status === 'completed' || s.status === 'skipped').length,
-    [steps],
+    () => actions.filter((a) => a.status === 'completed' || a.status === 'skipped').length,
+    [actions],
   )
-  const totalCount = steps.length
-  const progressPct = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100)
+  const elapsedMs = startedAt ? (endedAt ?? now) - startedAt : 0
+  const isBusy = runState === 'running' || runState === 'planning' || runState === 'awaiting'
+  const isDone = runState === 'completed' || runState === 'failed' || runState === 'cancelled'
 
-  const totalElapsed = useMemo(() => {
-    if (!startedAt) return 0
-    return (endedAt ?? now) - startedAt
-  }, [startedAt, endedAt, now])
-
-  function pushLog(kind: LogLine['kind'], text: string) {
-    setLogs((prev) => [...prev, { id: uid(), ts: Date.now(), kind, text }])
+  function pendingAction(): Action | null {
+    return pendingApproval !== null ? actions[pendingApproval] ?? null : null
   }
 
   function reset() {
     cancelRef.current = true
     if (approvalResolverRef.current) {
-      approvalResolverRef.current('stop')
+      approvalResolverRef.current('cancel')
       approvalResolverRef.current = null
     }
-    setSteps([])
-    setLogs([])
-    setTemplate(null)
+    setActions([])
+    setFollowUps([])
     setActivePrompt('')
-    setIntro('')
-    setClosing('')
-    setPendingApproval(null)
     setRunState('idle')
     setStartedAt(null)
     setEndedAt(null)
+    setPendingApproval(null)
+    setPreviewUrl(null)
+    setLiveUrl(null)
   }
 
   async function startRun(rawPrompt: string) {
@@ -242,147 +285,154 @@ function AgentMode() {
     if (!trimmed) return
     cancelRef.current = false
     setActivePrompt(trimmed)
+    setPrompt('')
     setRunState('planning')
     setStartedAt(Date.now())
     setEndedAt(null)
-    setLogs([])
-    setSteps([])
-    setIntro('')
-    setClosing('')
+    setActions([])
+    setFollowUps([])
     setPendingApproval(null)
+    setPreviewUrl(null)
+    setLiveUrl(null)
 
-    pushLog('info', `Received task: "${trimmed}"`)
-    pushLog('agent', 'Reading the request and deciding how to break it down…')
-
-    await wait(900)
+    await wait(700)
     if (cancelRef.current) return
 
     const tpl = pickTemplate(trimmed)
-    setTemplate(tpl)
-    setIntro(tpl.intro())
-    const newSteps: Step[] = tpl.steps.map((s) => ({
-      ...s,
+    const planned: Action[] = tpl.buildActions().map((a) => ({
+      ...a,
       id: uid(),
       status: 'pending',
+      critical: a.critical ?? isCriticalKind(a.kind),
     }))
-    setSteps(newSteps)
-
-    const criticalCount = newSteps.filter((s) => s.critical).length
-    pushLog(
-      'plan',
-      `Plan ready · ${tpl.label} · ${newSteps.length} steps${criticalCount > 0 ? ` · ${criticalCount} need approval` : ''}`,
-    )
-    if (criticalCount > 0 && !autoModeRef.current) {
-      pushLog(
-        'agent',
-        `Auto Mode is off — I'll pause before each of the ${criticalCount} side-effecting step${criticalCount === 1 ? '' : 's'} and wait for your call.`,
-      )
-    } else if (criticalCount > 0 && autoModeRef.current) {
-      pushLog('agent', `Auto Mode is on — I'll execute the ${criticalCount} critical step${criticalCount === 1 ? '' : 's'} without stopping.`)
-    }
+    setActions(planned)
 
     await wait(400)
     if (cancelRef.current) return
 
     setRunState('running')
 
-    let skippedAny = false
-
-    for (let i = 0; i < newSteps.length; i++) {
+    for (let i = 0; i < planned.length; i++) {
       if (cancelRef.current) {
         setRunState('cancelled')
         setEndedAt(Date.now())
         return
       }
-      const step = newSteps[i]
+      const action = planned[i]
 
-      // Permission gate for critical steps when Auto Mode is off
-      if (step.critical && !autoModeRef.current) {
-        setSteps((prev) =>
-          prev.map((s, idx) => (idx === i ? { ...s, status: 'awaiting' } : s)),
-        )
+      if (action.critical) {
+        setActions((prev) => prev.map((a, idx) => (idx === i ? { ...a, status: 'awaiting' } : a)))
         setPendingApproval(i)
         setRunState('awaiting')
-        pushLog('decision', `Need approval to proceed with: ${step.title}`)
 
-        const decision = await new Promise<'approve' | 'skip' | 'stop'>((resolve) => {
+        const decision = await new Promise<'approve' | 'cancel'>((resolve) => {
           approvalResolverRef.current = resolve
         })
         approvalResolverRef.current = null
         setPendingApproval(null)
 
-        if (decision === 'stop' || cancelRef.current) {
-          setSteps((prev) =>
-            prev.map((s, idx) => (idx === i ? { ...s, status: 'failed' } : s)),
-          )
+        if (decision === 'cancel' || cancelRef.current) {
+          setActions((prev) => prev.map((a, idx) => (idx === i ? { ...a, status: 'skipped' } : a)))
           setRunState('cancelled')
           setEndedAt(Date.now())
-          pushLog('error', 'Run stopped by user.')
           return
         }
 
-        if (decision === 'skip') {
-          setSteps((prev) =>
-            prev.map((s, idx) => (idx === i ? { ...s, status: 'skipped' } : s)),
-          )
-          pushLog('decision', `Skipped: ${step.title}`)
-          skippedAny = true
-          setRunState('running')
-          continue
-        }
-
-        pushLog('decision', `Approved: ${step.title}`)
         setRunState('running')
       }
 
-      setSteps((prev) =>
-        prev.map((s, idx) =>
-          idx === i ? { ...s, status: 'running', startedAt: Date.now() } : s,
-        ),
+      setActions((prev) =>
+        prev.map((a, idx) => (idx === i ? { ...a, status: 'running', startedAt: Date.now() } : a)),
       )
-      pushLog('tool', `[${i + 1}/${newSteps.length}] ${step.title}`)
 
-      await waitInterruptible(step.durationMs, cancelRef)
+      await waitInterruptible(action.durationMs, cancelRef)
       if (cancelRef.current) {
-        setSteps((prev) =>
-          prev.map((s, idx) => (idx === i ? { ...s, status: 'failed' } : s)),
-        )
+        setActions((prev) => prev.map((a, idx) => (idx === i ? { ...a, status: 'failed' } : a)))
         setRunState('cancelled')
         setEndedAt(Date.now())
-        pushLog('error', 'Run cancelled by user.')
         return
       }
 
-      setSteps((prev) =>
-        prev.map((s, idx) =>
-          idx === i ? { ...s, status: 'completed', completedAt: Date.now() } : s,
-        ),
-      )
-      pushLog('result', `✓ ${step.title}`)
+      // Simulated 8% chance for a deploy step to fail and trigger a rollback
+      if (action.kind === 'deploy_preview' && Math.random() < 0.08) {
+        setActions((prev) =>
+          prev.map((a, idx) =>
+            idx === i
+              ? {
+                  ...a,
+                  status: 'failed',
+                  completedAt: Date.now(),
+                  errorMessage: 'Build artifact rejected by the preview channel.',
+                }
+              : a,
+          ),
+        )
+        // Push a rollback action immediately after
+        const rollback: Action = {
+          id: uid(),
+          kind: 'rollback',
+          title: 'Rollback initiated',
+          detail: 'Preview channel reverted to the last known-good build.',
+          durationMs: 1400,
+          status: 'running',
+          startedAt: Date.now(),
+        }
+        setActions((prev) => [...prev.slice(0, i + 1), rollback, ...prev.slice(i + 1)])
+        await waitInterruptible(rollback.durationMs, cancelRef)
+        setActions((prev) =>
+          prev.map((a) =>
+            a.id === rollback.id ? { ...a, status: 'completed', completedAt: Date.now() } : a,
+          ),
+        )
+        setRunState('failed')
+        setEndedAt(Date.now())
+        return
+      }
+
+      const completedPatch: Partial<Action> = { status: 'completed', completedAt: Date.now() }
+      if (action.kind === 'deploy_preview') {
+        completedPatch.deployUrl = DEPLOY_PREVIEW_URL
+        setPreviewUrl(DEPLOY_PREVIEW_URL)
+      }
+      if (action.kind === 'publish_live') {
+        completedPatch.deployUrl = DEPLOY_LIVE_URL
+        setLiveUrl(DEPLOY_LIVE_URL)
+      }
+      setActions((prev) => prev.map((a, idx) => (idx === i ? { ...a, ...completedPatch } : a)))
     }
 
     setRunState('completed')
     setEndedAt(Date.now())
-    setClosing(
-      skippedAny
-        ? `Done — finished the plan, with one or more steps skipped on your call. Want me to revisit them or move on?`
-        : `All steps cleared. Happy with the result, or should I dig deeper on any one of them?`,
-    )
-    pushLog('agent', skippedAny ? 'Run complete with skipped steps.' : 'Run complete. Awaiting next instruction.')
   }
 
   function cancelRun() {
     if (runState === 'idle' || runState === 'completed') return
     cancelRef.current = true
-    if (approvalResolverRef.current) {
-      approvalResolverRef.current('stop')
-    }
+    if (approvalResolverRef.current) approvalResolverRef.current('cancel')
   }
 
-  function decide(decision: 'approve' | 'skip') {
-    if (approvalResolverRef.current) {
-      approvalResolverRef.current(decision)
+  function approveCurrent() {
+    if (approvalResolverRef.current) approvalResolverRef.current('approve')
+  }
+
+  function rejectCurrent() {
+    if (approvalResolverRef.current) approvalResolverRef.current('cancel')
+  }
+
+  function submitFollowUp(text: string) {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    if (!isBusy) {
+      startRun(trimmed)
+      return
     }
+    const fu: FollowUp = { id: uid(), text: trimmed, ts: Date.now(), status: 'queued' }
+    setFollowUps((prev) => [...prev, fu])
+    setPrompt('')
+    // Acknowledge after a short pause so the user sees the queue mechanic
+    window.setTimeout(() => {
+      setFollowUps((prev) => prev.map((f) => (f.id === fu.id ? { ...f, status: 'acknowledged' } : f)))
+    }, 900)
   }
 
   return (
@@ -392,139 +442,144 @@ function AgentMode() {
         minHeight: 'calc(100vh - 64px)',
         background:
           'radial-gradient(ellipse 80% 40% at 50% -10%, rgba(0, 200, 240, 0.10) 0%, transparent 60%), var(--bg-base)',
-        paddingBottom: '64px',
+        paddingBottom: '160px',
       }}
     >
       <div
         style={{
-          maxWidth: '1200px',
+          maxWidth: '1240px',
           margin: '0 auto',
-          padding: '48px 24px 0',
+          padding: '40px 24px 0',
         }}
       >
         {/* Header */}
-        <div
-          style={{
-            marginBottom: '32px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: '24px',
-            flexWrap: 'wrap',
-          }}
-        >
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <span className="tag" style={{ marginBottom: '16px' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }} />
-              Auto Agent Mode
-            </span>
-            <h1
+        <div style={{ marginBottom: '28px' }}>
+          <span className="tag" style={{ marginBottom: 12 }}>
+            <span
               style={{
-                fontSize: 'clamp(2rem, 4vw, 2.75rem)',
-                margin: '12px 0 8px',
-                color: 'var(--text-primary)',
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: 'var(--accent)',
+                animation: 'pulseDot 1.6s ease-in-out infinite',
               }}
-            >
-              Describe a task. Watch the agent work.
-            </h1>
-            <p
-              style={{
-                color: 'var(--text-secondary)',
-                fontSize: '1.0625rem',
-                maxWidth: '720px',
-                margin: 0,
-              }}
-            >
-              Give the agent a goal in plain English. It plans the work, narrates as it goes, and pauses to ask before
-              anything that touches real state — unless you flip Auto Mode on.
-            </p>
-          </div>
-          <AutoModeToggle value={autoMode} onChange={setAutoMode} />
+            />
+            Auto Agent Mode
+          </span>
+          <h1
+            style={{
+              fontSize: 'clamp(1.75rem, 3.6vw, 2.5rem)',
+              margin: '12px 0 6px',
+              color: 'var(--text-primary)',
+            }}
+          >
+            Describe a task. Watch the agent work.
+          </h1>
+          <p
+            style={{
+              color: 'var(--text-secondary)',
+              fontSize: '1rem',
+              maxWidth: '720px',
+              margin: 0,
+            }}
+          >
+            {MODEL_NAME} plans the work, narrates each action live, and stops to ask before any change that
+            touches production.
+          </p>
         </div>
 
-        {/* Composer */}
-        <Composer
-          prompt={prompt}
-          setPrompt={setPrompt}
-          onRun={() => startRun(prompt)}
-          onCancel={cancelRun}
-          onReset={reset}
+        {/* Status card */}
+        <StatusCard
           runState={runState}
+          activePrompt={activePrompt}
+          elapsedMs={elapsedMs}
+          completedCount={completedCount}
+          totalCount={actions.length}
+          previewUrl={previewUrl}
+          liveUrl={liveUrl}
+          failedAction={actions.find((a) => a.status === 'failed') ?? null}
         />
 
-        {/* Suggestions (only when idle) */}
-        {runState === 'idle' && steps.length === 0 && (
+        {/* Idle suggestions */}
+        {runState === 'idle' && actions.length === 0 && (
           <div
             style={{
+              marginTop: 18,
               display: 'flex',
               flexWrap: 'wrap',
-              gap: '8px',
-              marginTop: '16px',
+              gap: 8,
             }}
           >
             {SUGGESTIONS.map((s) => (
               <button
-                key={s.text}
-                onClick={() => {
-                  setPrompt(s.text)
-                  startRun(s.text)
-                }}
+                key={s}
+                onClick={() => startRun(s)}
                 className="suggestion-chip"
+                type="button"
               >
-                <span style={{ fontSize: '1rem' }}>{s.icon}</span>
-                <span>{s.text}</span>
+                {s}
               </button>
             ))}
           </div>
         )}
 
-        {/* Run panel */}
-        {(runState !== 'idle' || steps.length > 0) && (
+        {/* Two column working area */}
+        {(runState !== 'idle' || actions.length > 0) && (
           <div
-            className="run-grid"
+            className="agent-grid"
             style={{
-              marginTop: '32px',
+              marginTop: 24,
               display: 'grid',
-              gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)',
-              gap: '20px',
+              gridTemplateColumns: 'minmax(0, 320px) minmax(0, 1fr)',
+              gap: 20,
               alignItems: 'start',
             }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
-              {(intro || closing) && (
-                <AgentMessage
-                  intro={intro}
-                  closing={closing}
-                  template={template}
-                  runState={runState}
-                />
-              )}
-              <StepsPanel
-                activePrompt={activePrompt}
-                template={template}
-                steps={steps}
-                runState={runState}
-                completedCount={completedCount}
-                totalCount={totalCount}
-                progressPct={progressPct}
-                totalElapsed={totalElapsed}
-                now={now}
-                pendingApproval={pendingApproval}
-                onApprove={() => decide('approve')}
-                onSkip={() => decide('skip')}
-                onStop={cancelRun}
-              />
-            </div>
-            <LogPanel logs={logs} runState={runState} logEndRef={logEndRef} />
+            <ActionMonitor actions={actions} now={now} monitorRef={monitorRef} />
+            <RunFeed
+              actions={actions}
+              now={now}
+              previewUrl={previewUrl}
+              liveUrl={liveUrl}
+              followUps={followUps}
+              activePrompt={activePrompt}
+            />
+          </div>
+        )}
+
+        {/* Done — reset CTA */}
+        {isDone && (
+          <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end' }}>
+            <button onClick={reset} className="btn-ghost" style={{ padding: '8px 18px', fontSize: '0.8125rem' }}>
+              Start a new task
+            </button>
           </div>
         )}
       </div>
+
+      {/* Approval modal */}
+      {pendingApproval !== null && pendingAction() && (
+        <ApprovalModal
+          action={pendingAction()!}
+          onApprove={approveCurrent}
+          onCancel={rejectCurrent}
+        />
+      )}
+
+      {/* Bottom input bar */}
+      <BottomBar
+        prompt={prompt}
+        setPrompt={setPrompt}
+        onSubmit={() => submitFollowUp(prompt)}
+        onCancel={cancelRun}
+        runState={runState}
+        followUpQueueCount={followUps.filter((f) => f.status === 'queued').length}
+      />
 
       <style>{`
         .suggestion-chip {
           display: inline-flex;
           align-items: center;
-          gap: 8px;
           padding: 8px 14px;
           background: var(--bg-surface);
           border: 1px solid var(--border);
@@ -532,635 +587,315 @@ function AgentMode() {
           color: var(--text-secondary);
           font-size: 0.8125rem;
           cursor: pointer;
-          transition: all 0.15s ease;
           font-family: inherit;
+          transition: all 0.15s ease;
         }
         .suggestion-chip:hover {
           border-color: var(--accent);
           color: var(--text-primary);
           background: rgba(0, 200, 240, 0.06);
         }
-        @keyframes step-spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+        @keyframes pulseDot {
+          0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0, 200, 240, 0.5); }
+          50% { opacity: 0.6; box-shadow: 0 0 0 6px rgba(0, 200, 240, 0); }
         }
-        @keyframes step-pulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(0, 200, 240, 0.5); }
-          50% { box-shadow: 0 0 0 8px rgba(0, 200, 240, 0); }
-        }
-        @keyframes warn-pulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(255, 184, 0, 0.45); }
-          50% { box-shadow: 0 0 0 10px rgba(255, 184, 0, 0); }
+        @keyframes monitorSpin { to { transform: rotate(360deg); } }
+        @keyframes monitorFadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         @keyframes shimmer {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
         }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(2px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .progress-bar-fill {
+        .progress-shimmer {
           background: linear-gradient(90deg, var(--accent) 0%, #5cdcf2 50%, var(--accent) 100%);
           background-size: 200% 100%;
           animation: shimmer 2.4s linear infinite;
         }
-        .step-row.running {
-          background: linear-gradient(180deg, rgba(0, 200, 240, 0.08) 0%, rgba(0, 200, 240, 0.02) 100%);
-          border-color: rgba(0, 200, 240, 0.35);
+        @media (max-width: 960px) {
+          .agent-grid { grid-template-columns: 1fr !important; }
         }
-        .step-row.completed .step-icon {
-          background: rgba(0, 200, 240, 0.12);
-          color: var(--accent);
-          border-color: rgba(0, 200, 240, 0.35);
-        }
-        .step-row.failed .step-icon {
-          background: rgba(244, 71, 99, 0.12);
-          color: #f44763;
-          border-color: rgba(244, 71, 99, 0.4);
-        }
-        .step-row.skipped {
-          opacity: 0.65;
-        }
-        .step-row.skipped .step-icon {
-          background: var(--bg-surface);
-          color: var(--text-muted);
-          border-color: var(--border);
-        }
-        .step-row.awaiting {
-          background: linear-gradient(180deg, rgba(255, 184, 0, 0.10) 0%, rgba(255, 184, 0, 0.02) 100%);
-          border-color: rgba(255, 184, 0, 0.45);
-          animation: warn-pulse 2s infinite;
-        }
-        .step-row.awaiting .step-icon {
-          background: rgba(255, 184, 0, 0.14);
-          color: #ffb800;
-          border-color: rgba(255, 184, 0, 0.45);
-        }
-        .step-connector {
-          position: absolute;
-          left: 19px;
-          top: 40px;
-          bottom: -12px;
-          width: 2px;
-          background: var(--border);
-        }
-        .step-connector.completed {
-          background: linear-gradient(180deg, var(--accent), var(--border));
-        }
-        .approval-card {
-          margin-top: 10px;
-          padding: 14px 14px 12px;
-          border: 1px solid rgba(255, 184, 0, 0.4);
-          border-radius: 10px;
-          background: linear-gradient(180deg, rgba(255, 184, 0, 0.10) 0%, rgba(255, 184, 0, 0.03) 100%);
-          animation: fadeIn 0.2s ease;
-        }
-        .critical-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          padding: 2px 8px;
-          border-radius: 999px;
-          font-family: 'DM Mono', monospace;
-          font-size: 0.6875rem;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
-          background: rgba(255, 184, 0, 0.12);
-          color: #ffb800;
-          border: 1px solid rgba(255, 184, 0, 0.35);
-        }
-        @media (max-width: 880px) {
-          .run-grid { grid-template-columns: 1fr !important; }
+        @media (max-width: 640px) {
+          .bottom-bar-inner { flex-direction: column; align-items: stretch !important; gap: 10px !important; }
+          .bottom-bar-controls { width: 100%; justify-content: space-between; }
+          .model-pill-text { display: none; }
         }
       `}</style>
     </div>
   )
 }
 
-function AutoModeToggle({
-  value,
-  onChange,
-}: {
-  value: boolean
-  onChange: (v: boolean) => void
-}) {
-  return (
-    <button
-      onClick={() => onChange(!value)}
-      aria-pressed={value}
-      title={
-        value
-          ? 'Auto Mode is on — the agent will execute critical steps without stopping.'
-          : 'Auto Mode is off — the agent will pause for approval on critical steps.'
-      }
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '12px',
-        padding: '10px 14px',
-        background: value ? 'rgba(0, 200, 240, 0.08)' : 'var(--bg-surface)',
-        border: `1px solid ${value ? 'rgba(0, 200, 240, 0.5)' : 'var(--border)'}`,
-        borderRadius: '12px',
-        color: 'var(--text-primary)',
-        fontFamily: 'inherit',
-        fontSize: '0.8125rem',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-        flexShrink: 0,
-      }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
-        <span
-          style={{
-            fontFamily: 'DM Mono, monospace',
-            fontSize: '0.625rem',
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-          }}
-        >
-          Auto Mode
-        </span>
-        <span style={{ color: value ? 'var(--accent)' : 'var(--text-secondary)', fontWeight: 600 }}>
-          {value ? 'ON · acting freely' : 'OFF · asks first'}
-        </span>
-      </div>
-      <span
-        style={{
-          width: 36,
-          height: 20,
-          borderRadius: 999,
-          background: value ? 'var(--accent)' : 'var(--bg-elevated)',
-          position: 'relative',
-          transition: 'background 0.2s',
-          border: `1px solid ${value ? 'var(--accent)' : 'var(--border-bright)'}`,
-        }}
-      >
-        <span
-          style={{
-            position: 'absolute',
-            top: 1,
-            left: value ? 17 : 1,
-            width: 16,
-            height: 16,
-            borderRadius: '50%',
-            background: value ? '#060a12' : 'var(--text-secondary)',
-            transition: 'left 0.2s ease',
-          }}
-        />
-      </span>
-    </button>
-  )
-}
+/* ----------------------------------------------------------------------- */
+/*                            Status Card                                  */
+/* ----------------------------------------------------------------------- */
 
-function AgentMessage({
-  intro,
-  closing,
-  template,
+function StatusCard({
   runState,
+  activePrompt,
+  elapsedMs,
+  completedCount,
+  totalCount,
+  previewUrl,
+  liveUrl,
+  failedAction,
 }: {
-  intro: string
-  closing: string
-  template: Template | null
   runState: RunState
-}) {
-  const text = closing || intro
-  if (!text) return null
-  return (
-    <div
-      style={{
-        display: 'flex',
-        gap: '12px',
-        padding: '16px',
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border)',
-        borderRadius: '14px',
-      }}
-    >
-      <div
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: '50%',
-          background: 'rgba(0, 200, 240, 0.12)',
-          border: '1px solid rgba(0, 200, 240, 0.35)',
-          color: 'var(--accent)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          fontSize: '0.875rem',
-          fontFamily: 'Syne, sans-serif',
-          fontWeight: 700,
-        }}
-      >
-        A
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontFamily: 'DM Mono, monospace',
-            fontSize: '0.6875rem',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-            marginBottom: '6px',
-          }}
-        >
-          Agent {template ? `· ${template.icon} ${template.label}` : ''}
-          {runState === 'completed' && ' · result'}
-        </div>
-        <div
-          style={{
-            color: 'var(--text-primary)',
-            fontSize: '0.9375rem',
-            lineHeight: 1.6,
-          }}
-        >
-          {text}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function Composer({
-  prompt,
-  setPrompt,
-  onRun,
-  onCancel,
-  onReset,
-  runState,
-}: {
-  prompt: string
-  setPrompt: (s: string) => void
-  onRun: () => void
-  onCancel: () => void
-  onReset: () => void
-  runState: RunState
+  activePrompt: string
+  elapsedMs: number
+  completedCount: number
+  totalCount: number
+  previewUrl: string | null
+  liveUrl: string | null
+  failedAction: Action | null
 }) {
   const isBusy = runState === 'running' || runState === 'planning' || runState === 'awaiting'
-  const isDone = runState === 'completed' || runState === 'failed' || runState === 'cancelled'
+  const headline =
+    runState === 'idle'
+      ? `${MODEL_NAME} is ready`
+      : runState === 'planning'
+        ? `${MODEL_NAME} is planning`
+        : runState === 'awaiting'
+          ? `${MODEL_NAME} is waiting for approval`
+          : runState === 'running'
+            ? `${MODEL_NAME} is working`
+            : runState === 'completed'
+              ? `${MODEL_NAME} finished the task`
+              : runState === 'failed'
+                ? `${MODEL_NAME} hit an error`
+                : `${MODEL_NAME} stopped`
+
+  const progressPct = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100)
 
   return (
     <div
       style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border)',
-        borderRadius: '16px',
-        padding: '4px',
         position: 'relative',
+        background: 'var(--bg-surface)',
+        border: `1px solid ${runState === 'awaiting' ? 'rgba(255, 184, 0, 0.45)' : 'var(--border)'}`,
+        borderRadius: 18,
+        padding: 20,
         overflow: 'hidden',
       }}
     >
-      <textarea
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !isBusy) {
-            e.preventDefault()
-            onRun()
-          }
-        }}
-        disabled={isBusy}
-        placeholder="e.g. Build a marketing site for a developer tool, or fix the 500 on POST /api/orders"
-        rows={3}
-        style={{
-          width: '100%',
-          background: 'transparent',
-          border: 'none',
-          outline: 'none',
-          color: 'var(--text-primary)',
-          fontFamily: 'inherit',
-          fontSize: '1rem',
-          padding: '16px',
-          resize: 'none',
-          lineHeight: 1.55,
-        }}
-      />
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '8px 12px 12px',
-          gap: '12px',
+          alignItems: 'flex-start',
+          gap: 16,
           flexWrap: 'wrap',
         }}
       >
-        <span
-          style={{
-            color: 'var(--text-muted)',
-            fontSize: '0.75rem',
-            fontFamily: 'DM Mono, monospace',
-            letterSpacing: '0.04em',
-          }}
-        >
-          ⌘ + ↵ to run
-        </span>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {isDone && (
-            <button
-              onClick={onReset}
-              className="btn-ghost"
-              style={{ padding: '8px 18px', fontSize: '0.8125rem' }}
-            >
-              New task
-            </button>
-          )}
-          {isBusy ? (
-            <button
-              onClick={onCancel}
-              className="btn-ghost"
-              style={{
-                padding: '8px 18px',
-                fontSize: '0.8125rem',
-                borderColor: 'rgba(244, 71, 99, 0.5)',
-                color: '#f44763',
-              }}
-            >
-              Cancel
-            </button>
-          ) : (
-            <button
-              onClick={onRun}
-              disabled={!prompt.trim()}
-              className="btn-primary"
-              style={{
-                padding: '8px 22px',
-                fontSize: '0.8125rem',
-                opacity: prompt.trim() ? 1 : 0.4,
-                cursor: prompt.trim() ? 'pointer' : 'not-allowed',
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M2 1.5L12 7L2 12.5V1.5Z" fill="currentColor" />
-              </svg>
-              Run agent
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function StepsPanel({
-  activePrompt,
-  template,
-  steps,
-  runState,
-  completedCount,
-  totalCount,
-  progressPct,
-  totalElapsed,
-  now,
-  pendingApproval,
-  onApprove,
-  onSkip,
-  onStop,
-}: {
-  activePrompt: string
-  template: Template | null
-  steps: Step[]
-  runState: RunState
-  completedCount: number
-  totalCount: number
-  progressPct: number
-  totalElapsed: number
-  now: number
-  pendingApproval: number | null
-  onApprove: () => void
-  onSkip: () => void
-  onStop: () => void
-}) {
-  return (
-    <div
-      style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border)',
-        borderRadius: '16px',
-        padding: '20px',
-      }}
-    >
-      {/* Header row */}
-      <div style={{ marginBottom: '16px' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: '12px',
-            marginBottom: '12px',
-          }}
-        >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+          <ModelOrb runState={runState} />
           <div style={{ minWidth: 0 }}>
             <div
               style={{
-                fontFamily: 'DM Mono, monospace',
-                fontSize: '0.6875rem',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                color: 'var(--text-muted)',
-                marginBottom: '4px',
+                color: 'var(--text-primary)',
+                fontFamily: 'Syne, sans-serif',
+                fontSize: '1.0625rem',
+                fontWeight: 600,
               }}
             >
-              <RunBadge state={runState} /> · {template ? `${template.icon} ${template.label}` : 'Plan'}
+              {headline}
             </div>
             <div
               style={{
-                color: 'var(--text-primary)',
-                fontWeight: 500,
-                fontSize: '0.9375rem',
+                color: 'var(--text-secondary)',
+                fontSize: '0.875rem',
+                marginTop: 2,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                maxWidth: 520,
               }}
               title={activePrompt}
             >
-              {activePrompt || '—'}
+              {activePrompt || 'Waiting for a task description.'}
             </div>
-          </div>
-          <div
-            style={{
-              fontFamily: 'DM Mono, monospace',
-              fontSize: '0.8125rem',
-              color: 'var(--text-secondary)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {completedCount}/{totalCount || '–'} · {fmtDuration(totalElapsed)}
           </div>
         </div>
 
-        {/* Progress bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <Metric label="Timer" value={fmtClock(elapsedMs)} mono />
+          <Metric
+            label="Actions"
+            value={`${completedCount} / ${totalCount || '–'}`}
+            mono
+          />
+          <StatusBadge runState={runState} />
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      {totalCount > 0 && (
         <div
           style={{
-            height: '6px',
-            borderRadius: '3px',
+            marginTop: 16,
+            height: 6,
+            borderRadius: 3,
             background: 'var(--bg-elevated)',
             overflow: 'hidden',
           }}
         >
           <div
-            className={runState === 'running' ? 'progress-bar-fill' : ''}
+            className={isBusy ? 'progress-shimmer' : ''}
             style={{
-              height: '100%',
               width: `${progressPct}%`,
+              height: '100%',
               background:
                 runState === 'failed' || runState === 'cancelled'
                   ? '#f44763'
                   : runState === 'awaiting'
                     ? '#ffb800'
                     : runState === 'completed'
-                      ? 'var(--accent)'
+                      ? 'var(--accent-live, #22c55e)'
                       : undefined,
               transition: 'width 0.4s ease',
             }}
           />
         </div>
-      </div>
+      )}
 
-      {/* Steps */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {steps.length === 0 && runState === 'planning' && <PlanningSkeleton />}
-        {steps.map((step, idx) => (
-          <div key={step.id}>
-            <StepRow
-              step={step}
-              index={idx}
-              isLast={idx === steps.length - 1}
-              now={now}
+      {/* Deploy summary */}
+      {(previewUrl || liveUrl || runState === 'failed') && (
+        <div
+          style={{
+            marginTop: 14,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          {previewUrl && (
+            <DeployRow
+              label="Preview"
+              url={previewUrl}
+              status={liveUrl ? 'replaced' : 'ready'}
             />
-            {pendingApproval === idx && (
-              <ApprovalCard
-                step={step}
-                onApprove={onApprove}
-                onSkip={onSkip}
-                onStop={onStop}
-              />
-            )}
-          </div>
-        ))}
-      </div>
+          )}
+          {liveUrl && <DeployRow label="Live" url={liveUrl} status="live" />}
+          {runState === 'failed' && failedAction && (
+            <DeployRow
+              label="Failed"
+              url={failedAction.errorMessage || 'Deploy failed — automatic rollback completed.'}
+              status="failed"
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
-function ApprovalCard({
-  step,
-  onApprove,
-  onSkip,
-  onStop,
-}: {
-  step: Step
-  onApprove: () => void
-  onSkip: () => void
-  onStop: () => void
-}) {
+function ModelOrb({ runState }: { runState: RunState }) {
+  const isBusy = runState === 'running' || runState === 'planning' || runState === 'awaiting'
   return (
-    <div className="approval-card">
+    <div
+      style={{
+        position: 'relative',
+        width: 44,
+        height: 44,
+        flexShrink: 0,
+        borderRadius: 12,
+        background: 'linear-gradient(135deg, rgba(0, 200, 240, 0.25), rgba(34, 197, 94, 0.18))',
+        border: '1px solid rgba(0, 200, 240, 0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: isBusy ? '0 0 24px rgba(0, 200, 240, 0.35)' : 'none',
+        transition: 'box-shadow 0.4s ease',
+      }}
+    >
+      {isBusy ? (
+        <svg width="22" height="22" viewBox="0 0 22 22" style={{ animation: 'monitorSpin 1.6s linear infinite' }}>
+          <circle cx="11" cy="11" r="8" stroke="var(--accent)" strokeWidth="2" fill="none" strokeDasharray="38" strokeDashoffset="20" strokeLinecap="round" />
+        </svg>
+      ) : (
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <rect x="3" y="3" width="6" height="6" rx="1.5" fill="var(--accent)" />
+          <rect x="11" y="3" width="6" height="6" rx="1.5" fill="var(--accent)" opacity="0.55" />
+          <rect x="3" y="11" width="6" height="6" rx="1.5" fill="var(--accent)" opacity="0.55" />
+          <rect x="11" y="11" width="6" height="6" rx="1.5" fill="var(--accent)" opacity="0.3" />
+        </svg>
+      )}
+    </div>
+  )
+}
+
+function Metric({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div
+      style={{
+        padding: '8px 12px',
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border)',
+        borderRadius: 10,
+        minWidth: 80,
+      }}
+    >
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '6px',
+          fontFamily: 'DM Mono, monospace',
+          fontSize: '0.625rem',
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
         }}
       >
-        <span className="critical-badge">
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-            <path
-              d="M5 1L9 8.5H1L5 1Z"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              strokeLinejoin="round"
-            />
-            <circle cx="5" cy="6.5" r="0.6" fill="currentColor" />
-          </svg>
-          Critical action
-        </span>
-        <span
-          style={{
-            fontFamily: 'DM Mono, monospace',
-            fontSize: '0.75rem',
-            color: 'var(--text-muted)',
-          }}
-        >
-          paused · awaiting your call
-        </span>
-      </div>
-      <div style={{ color: 'var(--text-primary)', fontSize: '0.9375rem', marginBottom: '4px' }}>
-        I'd like to <strong style={{ fontWeight: 600 }}>{step.title.toLowerCase()}</strong>.
+        {label}
       </div>
       <div
         style={{
-          color: 'var(--text-secondary)',
-          fontSize: '0.8125rem',
-          lineHeight: 1.5,
-          marginBottom: '12px',
+          color: 'var(--text-primary)',
+          fontFamily: mono ? 'DM Mono, monospace' : 'inherit',
+          fontSize: '0.9375rem',
+          fontWeight: 500,
+          marginTop: 2,
         }}
       >
-        {step.detail} This step changes real state, so I'm checking with you first. You can flip Auto Mode on if you'd
-        rather not be asked again this run.
-      </div>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <button
-          onClick={onApprove}
-          className="btn-primary"
-          style={{ padding: '8px 18px', fontSize: '0.8125rem' }}
-        >
-          Approve & continue
-        </button>
-        <button
-          onClick={onSkip}
-          className="btn-ghost"
-          style={{ padding: '8px 18px', fontSize: '0.8125rem' }}
-        >
-          Skip this step
-        </button>
-        <button
-          onClick={onStop}
-          className="btn-ghost"
-          style={{
-            padding: '8px 18px',
-            fontSize: '0.8125rem',
-            borderColor: 'rgba(244, 71, 99, 0.5)',
-            color: '#f44763',
-          }}
-        >
-          Stop run
-        </button>
+        {value}
       </div>
     </div>
   )
 }
 
-function RunBadge({ state }: { state: RunState }) {
-  const map: Record<RunState, { label: string; color: string; dot: string }> = {
-    idle: { label: 'Idle', color: 'var(--text-muted)', dot: 'var(--text-muted)' },
-    planning: { label: 'Planning', color: 'var(--accent)', dot: 'var(--accent)' },
-    running: { label: 'Running', color: 'var(--accent)', dot: 'var(--accent)' },
-    awaiting: { label: 'Awaiting approval', color: '#ffb800', dot: '#ffb800' },
-    completed: { label: 'Completed', color: 'var(--accent)', dot: 'var(--accent)' },
-    failed: { label: 'Failed', color: '#f44763', dot: '#f44763' },
-    cancelled: { label: 'Cancelled', color: '#f44763', dot: '#f44763' },
+function StatusBadge({ runState }: { runState: RunState }) {
+  const map: Record<RunState, { label: string; bg: string; color: string; border: string; pulse: boolean }> = {
+    idle: { label: 'Idle', bg: 'rgba(74, 96, 128, 0.12)', color: 'var(--text-muted)', border: 'var(--border)', pulse: false },
+    planning: { label: 'In Progress', bg: 'rgba(0, 200, 240, 0.12)', color: 'var(--accent)', border: 'rgba(0, 200, 240, 0.4)', pulse: true },
+    running: { label: 'In Progress', bg: 'rgba(0, 200, 240, 0.12)', color: 'var(--accent)', border: 'rgba(0, 200, 240, 0.4)', pulse: true },
+    awaiting: { label: 'Awaiting Approval', bg: 'rgba(255, 184, 0, 0.12)', color: '#ffb800', border: 'rgba(255, 184, 0, 0.4)', pulse: true },
+    completed: { label: 'Completed', bg: 'rgba(34, 197, 94, 0.14)', color: '#22c55e', border: 'rgba(34, 197, 94, 0.4)', pulse: false },
+    failed: { label: 'Failed', bg: 'rgba(244, 71, 99, 0.14)', color: '#f44763', border: 'rgba(244, 71, 99, 0.4)', pulse: false },
+    cancelled: { label: 'Stopped', bg: 'rgba(244, 71, 99, 0.14)', color: '#f44763', border: 'rgba(244, 71, 99, 0.4)', pulse: false },
   }
-  const v = map[state]
+  const v = map[runState]
   return (
-    <span style={{ color: v.color, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '6px 12px',
+        background: v.bg,
+        border: `1px solid ${v.border}`,
+        borderRadius: 999,
+        color: v.color,
+        fontFamily: 'DM Mono, monospace',
+        fontSize: '0.6875rem',
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+      }}
+    >
       <span
         style={{
-          display: 'inline-block',
           width: 6,
           height: 6,
           borderRadius: '50%',
-          background: v.dot,
-          animation:
-            state === 'running' || state === 'planning' || state === 'awaiting'
-              ? 'step-pulse 1.6s infinite'
-              : undefined,
+          background: v.color,
+          animation: v.pulse ? 'pulseDot 1.4s ease-in-out infinite' : undefined,
         }}
       />
       {v.label}
@@ -1168,261 +903,106 @@ function RunBadge({ state }: { state: RunState }) {
   )
 }
 
-function PlanningSkeleton() {
-  return (
-    <>
-      {[0, 1, 2, 3].map((i) => (
-        <div
-          key={i}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '12px',
-            border: '1px solid var(--border)',
-            borderRadius: '10px',
-            opacity: 0.5,
-            animation: 'fadeIn 0.4s ease',
-            animationDelay: `${i * 80}ms`,
-          }}
-        >
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: '50%',
-              background: 'var(--bg-elevated)',
-            }}
-          />
-          <div style={{ flex: 1 }}>
-            <div
-              style={{
-                width: '40%',
-                height: 10,
-                background: 'var(--bg-elevated)',
-                borderRadius: 4,
-                marginBottom: 6,
-              }}
-            />
-            <div
-              style={{
-                width: '70%',
-                height: 8,
-                background: 'var(--bg-elevated)',
-                borderRadius: 4,
-              }}
-            />
-          </div>
-        </div>
-      ))}
-    </>
-  )
-}
-
-function StepRow({
-  step,
-  index,
-  isLast,
-  now,
+function DeployRow({
+  label,
+  url,
+  status,
 }: {
-  step: Step
-  index: number
-  isLast: boolean
-  now: number
+  label: string
+  url: string
+  status: 'ready' | 'live' | 'failed' | 'replaced'
 }) {
-  const elapsed =
-    step.status === 'running' && step.startedAt
-      ? now - step.startedAt
-      : step.completedAt && step.startedAt
-        ? step.completedAt - step.startedAt
-        : 0
+  const tone =
+    status === 'live'
+      ? { color: '#22c55e', border: 'rgba(34, 197, 94, 0.35)', bg: 'rgba(34, 197, 94, 0.08)' }
+      : status === 'failed'
+        ? { color: '#f44763', border: 'rgba(244, 71, 99, 0.35)', bg: 'rgba(244, 71, 99, 0.08)' }
+        : status === 'replaced'
+          ? { color: 'var(--text-muted)', border: 'var(--border)', bg: 'var(--bg-elevated)' }
+          : { color: 'var(--accent)', border: 'rgba(0, 200, 240, 0.35)', bg: 'rgba(0, 200, 240, 0.06)' }
 
+  const isUrl = url.startsWith('http')
   return (
     <div
-      className={`step-row ${step.status}`}
       style={{
-        position: 'relative',
-        display: 'flex',
-        gap: '12px',
-        padding: '12px 14px',
-        border: '1px solid var(--border)',
-        borderRadius: '10px',
-        background: 'var(--bg-elevated)',
-        transition: 'all 0.2s ease',
-      }}
-    >
-      {!isLast && (
-        <div
-          className={`step-connector ${step.status === 'completed' ? 'completed' : ''}`}
-        />
-      )}
-      <StepIcon status={step.status} index={index} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            gap: 12,
-            marginBottom: 2,
-            alignItems: 'center',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              minWidth: 0,
-              flex: 1,
-            }}
-          >
-            <span
-              style={{
-                fontWeight: 500,
-                color:
-                  step.status === 'pending' || step.status === 'skipped'
-                    ? 'var(--text-secondary)'
-                    : 'var(--text-primary)',
-                fontSize: '0.9375rem',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {step.title}
-            </span>
-            {step.critical && step.status !== 'completed' && step.status !== 'skipped' && (
-              <span className="critical-badge">critical</span>
-            )}
-          </div>
-          <div
-            style={{
-              fontFamily: 'DM Mono, monospace',
-              fontSize: '0.75rem',
-              color: 'var(--text-muted)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {step.status === 'running' && fmtDuration(elapsed)}
-            {step.status === 'completed' && fmtDuration(elapsed)}
-            {step.status === 'pending' && '—'}
-            {step.status === 'awaiting' && 'paused'}
-            {step.status === 'skipped' && 'skipped'}
-            {step.status === 'failed' && 'failed'}
-          </div>
-        </div>
-        <div
-          style={{
-            color: 'var(--text-secondary)',
-            fontSize: '0.8125rem',
-            lineHeight: 1.5,
-          }}
-        >
-          {step.detail}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function StepIcon({ status, index }: { status: StepStatus; index: number }) {
-  return (
-    <div
-      className="step-icon"
-      style={{
-        width: 28,
-        height: 28,
-        borderRadius: '50%',
-        flexShrink: 0,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border)',
-        color: 'var(--text-muted)',
-        fontSize: '0.75rem',
-        fontFamily: 'DM Mono, monospace',
-        fontWeight: 500,
-        position: 'relative',
-        zIndex: 1,
+        gap: 10,
+        padding: '10px 12px',
+        background: tone.bg,
+        border: `1px solid ${tone.border}`,
+        borderRadius: 10,
       }}
     >
-      {status === 'pending' && <span>{index + 1}</span>}
-      {status === 'running' && (
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          style={{ animation: 'step-spin 1s linear infinite' }}
+      <span
+        style={{
+          fontFamily: 'DM Mono, monospace',
+          fontSize: '0.6875rem',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: tone.color,
+          flexShrink: 0,
+        }}
+      >
+        {label}
+      </span>
+      {isUrl ? (
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            color: 'var(--text-primary)',
+            fontFamily: 'DM Mono, monospace',
+            fontSize: '0.8125rem',
+            textDecoration: 'none',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
         >
-          <circle
-            cx="8"
-            cy="8"
-            r="6"
-            stroke="var(--accent)"
-            strokeWidth="2"
-            fill="none"
-            strokeDasharray="28"
-            strokeDashoffset="14"
-            strokeLinecap="round"
-          />
-        </svg>
-      )}
-      {status === 'awaiting' && (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M7 1L13 12H1L7 1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-          <path d="M7 5.5V8.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          <circle cx="7" cy="10.5" r="0.8" fill="currentColor" />
-        </svg>
-      )}
-      {status === 'completed' && (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path
-            d="M2.5 7.5L5.5 10.5L11.5 4"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      )}
-      {status === 'skipped' && (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path
-            d="M3 7H11M11 7L8 4M11 7L8 10"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      )}
-      {status === 'failed' && (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-          <path d="M3 3L9 9M9 3L3 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
+          {url}
+        </a>
+      ) : (
+        <span
+          style={{
+            color: 'var(--text-primary)',
+            fontSize: '0.8125rem',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {url}
+        </span>
       )}
     </div>
   )
 }
 
-function LogPanel({
-  logs,
-  runState,
-  logEndRef,
+/* ----------------------------------------------------------------------- */
+/*                       Action Monitor (left panel)                       */
+/* ----------------------------------------------------------------------- */
+
+function ActionMonitor({
+  actions,
+  now,
+  monitorRef,
 }: {
-  logs: LogLine[]
-  runState: RunState
-  logEndRef: React.RefObject<HTMLDivElement | null>
+  actions: Action[]
+  now: number
+  monitorRef: React.RefObject<HTMLDivElement | null>
 }) {
   return (
-    <div
+    <aside
       style={{
         background: 'var(--bg-surface)',
         border: '1px solid var(--border)',
-        borderRadius: '16px',
-        padding: '20px',
-        maxHeight: '560px',
+        borderRadius: 16,
+        padding: 18,
+        position: 'sticky',
+        top: 84,
+        maxHeight: 'calc(100vh - 220px)',
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -1432,7 +1012,7 @@ function LogPanel({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '12px',
+          marginBottom: 14,
         }}
       >
         <div
@@ -1444,82 +1024,957 @@ function LogPanel({
             color: 'var(--text-muted)',
           }}
         >
-          Activity log
+          Action monitor
         </div>
-        <div
+        <span
           style={{
             fontFamily: 'DM Mono, monospace',
             fontSize: '0.75rem',
             color: 'var(--text-muted)',
           }}
         >
-          {logs.length} {logs.length === 1 ? 'event' : 'events'}
-        </div>
+          {actions.length} {actions.length === 1 ? 'action' : 'actions'}
+        </span>
       </div>
+
       <div
+        ref={monitorRef}
         style={{
           flex: 1,
           overflowY: 'auto',
-          background: 'var(--bg-base)',
-          border: '1px solid var(--border)',
-          borderRadius: '10px',
-          padding: '12px 14px',
-          fontFamily: 'DM Mono, monospace',
-          fontSize: '0.8125rem',
-          lineHeight: 1.6,
-          minHeight: '240px',
+          paddingRight: 4,
         }}
       >
-        {logs.length === 0 && (
-          <div style={{ color: 'var(--text-muted)' }}>
-            {runState === 'idle' ? 'Waiting for a task…' : 'Initializing…'}
+        {actions.length === 0 ? (
+          <div
+            style={{
+              fontFamily: 'DM Mono, monospace',
+              fontSize: '0.8125rem',
+              color: 'var(--text-muted)',
+              padding: '8px 0',
+            }}
+          >
+            Waiting for the first action…
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {actions.map((action, idx) => (
+              <TimelineItem
+                key={action.id}
+                action={action}
+                isLast={idx === actions.length - 1}
+                now={now}
+              />
+            ))}
           </div>
         )}
-        {logs.map((line) => (
-          <LogRow key={line.id} line={line} />
-        ))}
-        <div ref={logEndRef} />
+      </div>
+    </aside>
+  )
+}
+
+function TimelineItem({ action, isLast, now }: { action: Action; isLast: boolean; now: number }) {
+  const elapsed =
+    action.status === 'running' && action.startedAt
+      ? now - action.startedAt
+      : action.completedAt && action.startedAt
+        ? action.completedAt - action.startedAt
+        : 0
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        display: 'flex',
+        gap: 12,
+        paddingBottom: isLast ? 0 : 12,
+        animation: 'monitorFadeIn 0.25s ease',
+      }}
+    >
+      {!isLast && (
+        <span
+          style={{
+            position: 'absolute',
+            left: 13,
+            top: 28,
+            bottom: 0,
+            width: 2,
+            background:
+              action.status === 'completed'
+                ? 'linear-gradient(180deg, rgba(0, 200, 240, 0.6), var(--border))'
+                : 'var(--border)',
+          }}
+        />
+      )}
+      <ActionDot action={action} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            color:
+              action.status === 'pending'
+                ? 'var(--text-muted)'
+                : action.status === 'failed'
+                  ? '#f44763'
+                  : 'var(--text-primary)',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            display: 'flex',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
+        >
+          <span
+            style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
+            {action.title}
+          </span>
+          {(action.status === 'running' || action.status === 'completed') && elapsed > 0 && (
+            <span
+              style={{
+                fontFamily: 'DM Mono, monospace',
+                fontSize: '0.6875rem',
+                color: 'var(--text-muted)',
+                flexShrink: 0,
+              }}
+            >
+              {(elapsed / 1000).toFixed(1)}s
+            </span>
+          )}
+        </div>
+        <div
+          style={{
+            color: 'var(--text-secondary)',
+            fontSize: '0.75rem',
+            marginTop: 2,
+            lineHeight: 1.45,
+            wordBreak: 'break-word',
+          }}
+        >
+          {action.detail}
+        </div>
       </div>
     </div>
   )
 }
 
-function LogRow({ line }: { line: LogLine }) {
-  const colorMap: Record<LogLine['kind'], string> = {
-    info: 'var(--text-secondary)',
-    plan: '#a78bfa',
-    tool: 'var(--accent)',
-    result: '#34d399',
-    error: '#f44763',
-    agent: '#5cdcf2',
-    decision: '#ffb800',
-  }
-  const labelMap: Record<LogLine['kind'], string> = {
-    info: 'info',
-    plan: 'plan',
-    tool: 'step',
-    result: 'done',
-    error: 'err ',
-    agent: 'say ',
-    decision: 'ask ',
-  }
+function ActionDot({ action }: { action: Action }) {
+  const tone = actionTone(action)
   return (
     <div
       style={{
-        display: 'grid',
-        gridTemplateColumns: '74px 44px 1fr',
-        gap: '8px',
-        animation: 'fadeIn 0.25s ease',
+        width: 28,
+        height: 28,
+        flexShrink: 0,
+        borderRadius: '50%',
+        background: tone.bg,
+        border: `1px solid ${tone.border}`,
+        color: tone.color,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        zIndex: 1,
       }}
     >
-      <span style={{ color: 'var(--text-muted)' }}>{fmtClock(line.ts)}</span>
-      <span style={{ color: colorMap[line.kind] }}>{labelMap[line.kind]}</span>
-      <span style={{ color: 'var(--text-primary)', wordBreak: 'break-word' }}>
-        {line.text}
-      </span>
+      {action.status === 'running' ? (
+        <svg width="14" height="14" viewBox="0 0 14 14" style={{ animation: 'monitorSpin 1.1s linear infinite' }}>
+          <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeDasharray="22" strokeDashoffset="11" strokeLinecap="round" />
+        </svg>
+      ) : action.status === 'completed' ? (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2 6.5 L5 9.5 L10 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : action.status === 'failed' ? (
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M2 2 L8 8 M8 2 L2 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      ) : action.status === 'awaiting' ? (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M6 1 L11 10 H1 Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" fill="none" />
+          <circle cx="6" cy="8.6" r="0.6" fill="currentColor" />
+          <path d="M6 4.5 V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      ) : action.status === 'skipped' ? (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M3 6 H9 M9 6 L7 4 M9 6 L7 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <ActionKindIcon kind={action.kind} />
+      )}
     </div>
   )
 }
+
+function ActionKindIcon({ kind }: { kind: ActionKind }) {
+  switch (kind) {
+    case 'read':
+      return (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <rect x="2" y="1.5" width="6" height="9" rx="1" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M4 4.5 H6 M4 6.5 H6 M4 8.5 H5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+      )
+    case 'edit':
+    case 'update':
+      return (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M1.5 10 L1.5 8 L8 1.5 L10 3.5 L3.5 10 Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+        </svg>
+      )
+    case 'build':
+      return (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <rect x="1.5" y="1.5" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M4 6 L5.5 7.5 L8 4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )
+    case 'deploy_preview':
+    case 'publish_live':
+      return (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M6 1.5 L9.5 5 L7.5 5 L7.5 9.5 L4.5 9.5 L4.5 5 L2.5 5 Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+        </svg>
+      )
+    case 'rollback':
+      return (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M1.5 6 A4.5 4.5 0 1 1 4 9.7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" fill="none" />
+          <path d="M1.5 6 L1.5 3 M1.5 6 L4.5 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+      )
+    default:
+      return (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.2" />
+        </svg>
+      )
+  }
+}
+
+function actionTone(action: Action) {
+  if (action.status === 'running')
+    return { bg: 'rgba(0, 200, 240, 0.12)', border: 'rgba(0, 200, 240, 0.45)', color: 'var(--accent)' }
+  if (action.status === 'completed')
+    return { bg: 'rgba(34, 197, 94, 0.10)', border: 'rgba(34, 197, 94, 0.35)', color: '#22c55e' }
+  if (action.status === 'failed')
+    return { bg: 'rgba(244, 71, 99, 0.10)', border: 'rgba(244, 71, 99, 0.4)', color: '#f44763' }
+  if (action.status === 'awaiting')
+    return { bg: 'rgba(255, 184, 0, 0.12)', border: 'rgba(255, 184, 0, 0.4)', color: '#ffb800' }
+  if (action.status === 'skipped')
+    return { bg: 'var(--bg-elevated)', border: 'var(--border)', color: 'var(--text-muted)' }
+  return { bg: 'var(--bg-elevated)', border: 'var(--border)', color: 'var(--text-muted)' }
+}
+
+/* ----------------------------------------------------------------------- */
+/*                       Run Feed (right panel)                            */
+/* ----------------------------------------------------------------------- */
+
+function RunFeed({
+  actions,
+  now,
+  previewUrl,
+  liveUrl,
+  followUps,
+  activePrompt,
+}: {
+  actions: Action[]
+  now: number
+  previewUrl: string | null
+  liveUrl: string | null
+  followUps: FollowUp[]
+  activePrompt: string
+}) {
+  const visibleActions = actions.filter(
+    (a) => a.status === 'running' || a.status === 'completed' || a.status === 'failed' || a.status === 'awaiting',
+  )
+
+  return (
+    <div
+      style={{
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        padding: 20,
+        minHeight: 420,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          marginBottom: 14,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: 'DM Mono, monospace',
+            fontSize: '0.6875rem',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+          }}
+        >
+          Run feed
+        </div>
+        {activePrompt && (
+          <div
+            style={{
+              color: 'var(--text-secondary)',
+              fontSize: '0.75rem',
+              fontFamily: 'DM Mono, monospace',
+              maxWidth: 420,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={activePrompt}
+          >
+            “{activePrompt}”
+          </div>
+        )}
+      </div>
+
+      {visibleActions.length === 0 && (
+        <div
+          style={{
+            color: 'var(--text-muted)',
+            fontSize: '0.875rem',
+            padding: '20px 0',
+            fontFamily: 'DM Mono, monospace',
+          }}
+        >
+          The agent will narrate each step here as it runs.
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {visibleActions.map((action) => (
+          <FeedRow key={action.id} action={action} now={now} />
+        ))}
+      </div>
+
+      {(previewUrl || liveUrl) && (
+        <div
+          style={{
+            marginTop: 18,
+            paddingTop: 14,
+            borderTop: '1px solid var(--border)',
+          }}
+        >
+          <div
+            style={{
+              fontFamily: 'DM Mono, monospace',
+              fontSize: '0.6875rem',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+              marginBottom: 8,
+            }}
+          >
+            Deploy outcome
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {previewUrl && <DeployRow label="Preview" url={previewUrl} status={liveUrl ? 'replaced' : 'ready'} />}
+            {liveUrl && <DeployRow label="Live" url={liveUrl} status="live" />}
+          </div>
+        </div>
+      )}
+
+      {followUps.length > 0 && (
+        <div
+          style={{
+            marginTop: 18,
+            paddingTop: 14,
+            borderTop: '1px solid var(--border)',
+          }}
+        >
+          <div
+            style={{
+              fontFamily: 'DM Mono, monospace',
+              fontSize: '0.6875rem',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+              marginBottom: 8,
+            }}
+          >
+            Follow-ups while running
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {followUps.map((fu) => (
+              <div
+                key={fu.id}
+                style={{
+                  padding: '10px 12px',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 10,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  alignItems: 'center',
+                }}
+              >
+                <span style={{ color: 'var(--text-primary)', fontSize: '0.875rem' }}>{fu.text}</span>
+                <span
+                  style={{
+                    fontFamily: 'DM Mono, monospace',
+                    fontSize: '0.6875rem',
+                    color: fu.status === 'queued' ? '#ffb800' : 'var(--accent)',
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    flexShrink: 0,
+                  }}
+                >
+                  {fu.status === 'queued' ? 'Queued' : 'Acknowledged'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FeedRow({ action, now }: { action: Action; now: number }) {
+  const tone = actionTone(action)
+  const elapsed =
+    action.status === 'running' && action.startedAt
+      ? now - action.startedAt
+      : action.completedAt && action.startedAt
+        ? action.completedAt - action.startedAt
+        : 0
+  const completedAt =
+    action.completedAt ?? (action.status === 'running' && action.startedAt ? action.startedAt : undefined)
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        gap: 12,
+        padding: '12px 14px',
+        background: 'var(--bg-elevated)',
+        border: `1px solid ${tone.border}`,
+        borderRadius: 12,
+        animation: 'monitorFadeIn 0.25s ease',
+      }}
+    >
+      <div
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 8,
+          background: tone.bg,
+          color: tone.color,
+          border: `1px solid ${tone.border}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <ActionKindIcon kind={action.kind} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span
+            style={{
+              color: action.status === 'failed' ? '#f44763' : 'var(--text-primary)',
+              fontWeight: 500,
+              fontSize: '0.9375rem',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {action.title}
+          </span>
+          <span
+            style={{
+              fontFamily: 'DM Mono, monospace',
+              fontSize: '0.6875rem',
+              color: 'var(--text-muted)',
+              flexShrink: 0,
+            }}
+          >
+            {action.status === 'running' && elapsed > 0 ? `${(elapsed / 1000).toFixed(1)}s` : completedAt ? fmtTimestamp(completedAt) : ''}
+          </span>
+        </div>
+        <div
+          style={{
+            color: 'var(--text-secondary)',
+            fontSize: '0.8125rem',
+            marginTop: 2,
+            lineHeight: 1.5,
+          }}
+        >
+          {action.errorMessage ?? action.detail}
+        </div>
+        {action.deployUrl && (
+          <a
+            href={action.deployUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: 'inline-block',
+              marginTop: 6,
+              fontFamily: 'DM Mono, monospace',
+              fontSize: '0.75rem',
+              color: 'var(--accent)',
+              textDecoration: 'none',
+            }}
+          >
+            {action.deployUrl} ↗
+          </a>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ----------------------------------------------------------------------- */
+/*                         Approval modal                                  */
+/* ----------------------------------------------------------------------- */
+
+function ApprovalModal({
+  action,
+  onApprove,
+  onCancel,
+}: {
+  action: Action
+  onApprove: () => void
+  onCancel: () => void
+}) {
+  const copy = approvalCopy(action.kind, action.title)
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(6, 10, 18, 0.7)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        zIndex: 200,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        animation: 'monitorFadeIn 0.2s ease',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 480,
+          background: 'var(--bg-surface)',
+          border: '1px solid rgba(255, 184, 0, 0.4)',
+          borderRadius: 18,
+          padding: 24,
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.6)',
+        }}
+      >
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '4px 12px',
+            background: 'rgba(255, 184, 0, 0.12)',
+            border: '1px solid rgba(255, 184, 0, 0.35)',
+            borderRadius: 999,
+            color: '#ffb800',
+            fontFamily: 'DM Mono, monospace',
+            fontSize: '0.6875rem',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            marginBottom: 14,
+          }}
+        >
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+            <path d="M5.5 1 L10 9.5 H1 Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+            <circle cx="5.5" cy="7.5" r="0.6" fill="currentColor" />
+            <path d="M5.5 4 V6.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+          Permission required
+        </div>
+        <h2
+          style={{
+            fontFamily: 'Syne, sans-serif',
+            fontSize: '1.5rem',
+            color: 'var(--text-primary)',
+            margin: '0 0 8px',
+          }}
+        >
+          {copy.question}
+        </h2>
+        <p
+          style={{
+            color: 'var(--text-secondary)',
+            fontSize: '0.9375rem',
+            lineHeight: 1.6,
+            margin: '0 0 18px',
+          }}
+        >
+          {copy.warning}
+        </p>
+        <div
+          style={{
+            padding: '10px 12px',
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            marginBottom: 18,
+          }}
+        >
+          <div
+            style={{
+              fontFamily: 'DM Mono, monospace',
+              fontSize: '0.6875rem',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+              marginBottom: 4,
+            }}
+          >
+            Action
+          </div>
+          <div style={{ color: 'var(--text-primary)', fontSize: '0.9375rem', fontWeight: 500 }}>
+            {action.title}
+          </div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', marginTop: 2 }}>
+            {action.detail}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          <button
+            onClick={onCancel}
+            className="btn-ghost"
+            style={{ padding: '10px 22px', fontSize: '0.875rem' }}
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onApprove}
+            className="btn-primary"
+            style={{ padding: '10px 22px', fontSize: '0.875rem' }}
+            type="button"
+          >
+            Approve
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ----------------------------------------------------------------------- */
+/*                         Bottom Bar                                      */
+/* ----------------------------------------------------------------------- */
+
+function BottomBar({
+  prompt,
+  setPrompt,
+  onSubmit,
+  onCancel,
+  runState,
+  followUpQueueCount,
+}: {
+  prompt: string
+  setPrompt: (s: string) => void
+  onSubmit: () => void
+  onCancel: () => void
+  runState: RunState
+  followUpQueueCount: number
+}) {
+  const isBusy = runState === 'running' || runState === 'planning' || runState === 'awaiting'
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [recording, setRecording] = useState(false)
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) setPrompt(prompt ? `${prompt} (attached: ${file.name})` : `Attached file: ${file.name}`)
+    e.target.value = ''
+  }
+
+  function toggleMic() {
+    setRecording((r) => !r)
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 90,
+        padding: '14px 20px 18px',
+        background: 'linear-gradient(180deg, rgba(6, 10, 18, 0) 0%, rgba(6, 10, 18, 0.92) 30%, rgba(6, 10, 18, 0.98) 100%)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 1240,
+          margin: '0 auto',
+        }}
+      >
+        {followUpQueueCount > 0 && (
+          <div
+            style={{
+              marginBottom: 8,
+              fontFamily: 'DM Mono, monospace',
+              fontSize: '0.6875rem',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: '#ffb800',
+              textAlign: 'center',
+            }}
+          >
+            {followUpQueueCount} follow-up{followUpQueueCount === 1 ? '' : 's'} queued for the agent
+          </div>
+        )}
+        <div
+          style={{
+            background: 'var(--bg-surface)',
+            border: `1px solid ${isBusy ? 'rgba(0, 200, 240, 0.4)' : 'var(--border)'}`,
+            borderRadius: 16,
+            padding: 6,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4)',
+          }}
+          className="bottom-bar-inner"
+        >
+          {/* Model selector */}
+          <button
+            type="button"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 12px',
+              background: 'rgba(0, 200, 240, 0.08)',
+              border: '1px solid rgba(0, 200, 240, 0.3)',
+              borderRadius: 999,
+              color: 'var(--text-primary)',
+              fontFamily: 'inherit',
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+              cursor: 'pointer',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+            }}
+            title="Select agent model"
+          >
+            <span
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: 5,
+                background: 'linear-gradient(135deg, var(--accent), #22c55e)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <path d="M2 7 L4 5 L6 7 L8 3" stroke="#060a12" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <span className="model-pill-text">{MODEL_NAME}</span>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M2 4 L5 7 L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
+          <input
+            type="text"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                onSubmit()
+              }
+            }}
+            placeholder={isBusy ? 'Ask NVR Agent a follow-up…' : 'Describe a task for the agent…'}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: 'var(--text-primary)',
+              fontFamily: 'inherit',
+              fontSize: '0.9375rem',
+              padding: '10px 4px',
+            }}
+          />
+
+          <div className="bottom-bar-controls" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <IconButton title="Tools" onClick={() => {}}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+                <rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+                <rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+                <rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+            </IconButton>
+            <IconButton
+              title={recording ? 'Recording…' : 'Voice input'}
+              onClick={toggleMic}
+              active={recording}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="6" y="2" width="4" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M3 8 V8.5 A5 5 0 0 0 13 8.5 V8 M8 13.5 V14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </IconButton>
+            <IconButton title="Attach file" onClick={() => fileInputRef.current?.click()}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M11 4 L5.5 9.5 A2 2 0 0 0 8.3 12.3 L13 7.6 A3.5 3.5 0 0 0 8 2.6 L3.5 7 A5 5 0 0 0 10.5 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </IconButton>
+            <input ref={fileInputRef} type="file" onChange={handleFile} style={{ display: 'none' }} />
+
+            {isBusy ? (
+              <button
+                type="button"
+                onClick={onCancel}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  marginLeft: 4,
+                  padding: '10px 18px',
+                  borderRadius: 12,
+                  background: '#f44763',
+                  border: '1px solid #f44763',
+                  color: '#fff',
+                  fontFamily: 'Syne, sans-serif',
+                  fontWeight: 700,
+                  fontSize: '0.8125rem',
+                  letterSpacing: '0.02em',
+                  cursor: 'pointer',
+                  boxShadow: '0 6px 20px rgba(244, 71, 99, 0.35)',
+                }}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                  <rect x="2" y="2" width="6" height="6" rx="1" />
+                </svg>
+                Stop
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onSubmit}
+                disabled={!prompt.trim()}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  marginLeft: 4,
+                  padding: '10px 18px',
+                  borderRadius: 12,
+                  background: prompt.trim() ? '#3b82f6' : 'var(--bg-elevated)',
+                  border: `1px solid ${prompt.trim() ? '#3b82f6' : 'var(--border)'}`,
+                  color: prompt.trim() ? '#fff' : 'var(--text-muted)',
+                  fontFamily: 'Syne, sans-serif',
+                  fontWeight: 700,
+                  fontSize: '0.8125rem',
+                  letterSpacing: '0.02em',
+                  cursor: prompt.trim() ? 'pointer' : 'not-allowed',
+                  boxShadow: prompt.trim() ? '0 6px 20px rgba(59, 130, 246, 0.35)' : 'none',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                  <path d="M1 1 L9 5 L1 9 Z" />
+                </svg>
+                Run Agent
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function IconButton({
+  children,
+  onClick,
+  title,
+  active,
+}: {
+  children: React.ReactNode
+  onClick: () => void
+  title: string
+  active?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      style={{
+        width: 36,
+        height: 36,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 10,
+        background: active ? 'rgba(244, 71, 99, 0.14)' : 'transparent',
+        border: `1px solid ${active ? 'rgba(244, 71, 99, 0.4)' : 'transparent'}`,
+        color: active ? '#f44763' : 'var(--text-secondary)',
+        cursor: 'pointer',
+        transition: 'all 0.15s ease',
+      }}
+      onMouseEnter={(e) => {
+        if (!active) {
+          e.currentTarget.style.background = 'var(--bg-elevated)'
+          e.currentTarget.style.color = 'var(--text-primary)'
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          e.currentTarget.style.background = 'transparent'
+          e.currentTarget.style.color = 'var(--text-secondary)'
+        }
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+/* ----------------------------------------------------------------------- */
+/*                              Helpers                                    */
+/* ----------------------------------------------------------------------- */
 
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
