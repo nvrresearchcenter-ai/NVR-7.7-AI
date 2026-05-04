@@ -1,6 +1,5 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
-import { Footer } from '../components/Footer'
 
 export const Route = createFileRoute('/')({
   component: Home,
@@ -9,24 +8,22 @@ export const Route = createFileRoute('/')({
 function Home() {
   return (
     <div style={{ position: 'relative', overflow: 'hidden' }}>
-      {/* Hero — chat-first */}
       <section
         style={{
           position: 'relative',
-          padding: '96px 24px 88px',
+          padding: '24px',
           minHeight: 'calc(100vh - 64px)',
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'center',
           overflow: 'hidden',
         }}
         className="home-hero"
       >
-        {/* Background grid */}
         <div
           className="grid-pattern"
           style={{ position: 'absolute', inset: 0, zIndex: 0 }}
         />
-        {/* Radial glow */}
         <div
           style={{
             position: 'absolute',
@@ -52,38 +49,6 @@ function Home() {
             textAlign: 'center',
           }}
         >
-          {/* Version badge */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 14px',
-              borderRadius: '999px',
-              border: '1px solid rgba(0, 200, 240, 0.25)',
-              background: 'rgba(0, 200, 240, 0.06)',
-              marginBottom: '28px',
-              fontFamily: 'DM Mono, monospace',
-              fontSize: '0.75rem',
-              letterSpacing: '0.14em',
-              color: 'var(--text-primary)',
-              textTransform: 'uppercase',
-            }}
-          >
-            <span
-              aria-hidden
-              style={{
-                width: '7px',
-                height: '7px',
-                borderRadius: '999px',
-                background: 'var(--accent-live)',
-                boxShadow: '0 0 10px rgba(34, 197, 94, 0.9)',
-              }}
-            />
-            Version 7.7 — Now Live
-          </div>
-
-          {/* Premium hero headline */}
           <h1
             className="home-hero-title"
             style={{
@@ -98,10 +63,8 @@ function Home() {
           >
             <span style={{ display: 'block' }}>AI intelligence for</span>
             <span
-              className="hero-gradient-line"
               style={{
                 display: 'block',
-                position: 'relative',
                 backgroundImage:
                   'linear-gradient(110deg, #7fe8ff 0%, #00c8f0 35%, #4a8fff 70%, #7fe8ff 100%)',
                 WebkitBackgroundClip: 'text',
@@ -115,7 +78,6 @@ function Home() {
             </span>
           </h1>
 
-          {/* Sub text */}
           <p
             className="home-hero-sub"
             style={{
@@ -123,76 +85,23 @@ function Home() {
               fontSize: 'clamp(1rem, 1.6vw, 1.1875rem)',
               lineHeight: 1.6,
               color: 'var(--text-secondary)',
-              maxWidth: '640px',
+              maxWidth: '560px',
               margin: '0 auto 36px',
             }}
           >
-            NVR 7.7 combines world analysis, coding intelligence, design
-            generation, and network systems into one powerful AI workspace.
+            Build, analyze, and deploy with one powerful AI system.
           </p>
 
-          {/* Chat input */}
           <ChatLauncher />
-
-          {/* Buttons */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '10px',
-              justifyContent: 'center',
-              flexWrap: 'wrap',
-              marginTop: '20px',
-            }}
-          >
-            <Link
-              to="/pricing"
-              className="btn-primary"
-              style={{ fontSize: '0.875rem', padding: '11px 24px' }}
-            >
-              View Plans
-            </Link>
-            <Link
-              to="/features"
-              className="btn-ghost"
-              style={{ fontSize: '0.875rem', padding: '11px 24px' }}
-            >
-              Learn More
-            </Link>
-          </div>
-
-          {/* Quick prompts */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '8px',
-              justifyContent: 'center',
-              flexWrap: 'wrap',
-              marginTop: '32px',
-            }}
-            className="quick-prompts"
-          >
-            {[
-              'Draft a project brief',
-              'Analyze this network log',
-              'Generate a logo prompt',
-              'Write a refund policy',
-            ].map((q) => (
-              <QuickPrompt key={q} text={q} />
-            ))}
-          </div>
         </div>
 
         <style>{`
           @media (max-width: 640px) {
-            .home-hero { padding: 56px 18px 64px; min-height: auto; }
+            .home-hero { padding: 32px 18px; }
             .home-hero-title { letter-spacing: -0.025em !important; }
-            .home-hero-sub { margin-bottom: 28px !important; }
-            .quick-prompts { display: none !important; }
           }
         `}</style>
       </section>
-
-      <Footer />
     </div>
   )
 }
@@ -424,43 +333,6 @@ function IconButton({
       }}
     >
       {children}
-    </button>
-  )
-}
-
-function QuickPrompt({ text }: { text: string }) {
-  const navigate = useNavigate()
-  function go() {
-    try {
-      window.sessionStorage.setItem('nvr-chat-seed', text)
-    } catch {}
-    navigate({ to: '/chatbot' })
-  }
-  return (
-    <button
-      type="button"
-      onClick={go}
-      style={{
-        padding: '7px 14px',
-        borderRadius: '999px',
-        border: '1px solid var(--border)',
-        background: 'rgba(255,255,255,0.02)',
-        color: 'var(--text-secondary)',
-        fontSize: '0.8125rem',
-        fontFamily: 'DM Sans, sans-serif',
-        cursor: 'pointer',
-        transition: 'border-color 0.15s, color 0.15s, background 0.15s',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border-bright)'
-        e.currentTarget.style.color = 'var(--text-primary)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border)'
-        e.currentTarget.style.color = 'var(--text-secondary)'
-      }}
-    >
-      {text}
     </button>
   )
 }
