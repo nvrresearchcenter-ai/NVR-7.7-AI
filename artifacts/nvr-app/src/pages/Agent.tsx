@@ -29,7 +29,7 @@ import BuyDomainModal from "@/components/BuyDomainModal";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySpeechRecognition = any;
-type AgentModel = "nvr-7.7" | "nvr-8.8" | "nvr-9.9";
+type AgentModel = "nvr-7.7" | "nvr-8.8" | "nvr-9.9" | "nvr-9.9-ultra";
 type AgentActivity = "idle" | "thinking" | "editing" | "building" | "deploying" | "error" | "complete";
 interface FileNode { name: string; type: "file" | "folder"; ext?: string; path?: string; size?: number; children?: FileNode[]; }
 interface ChatMsg { role: "user" | "assistant"; content: string; }
@@ -54,6 +54,12 @@ const MODEL_INFO: Record<AgentModel, { label: string; desc: string; badge: strin
     desc:  "Full Autonomy — live production deployments, server orchestration & CI/CD",
     badge: "Super",
     badgeCls: "bg-amber-500/15 text-amber-400 border-amber-500/25",
+  },
+  "nvr-9.9-ultra": {
+    label: "NVR 9.9 Ultra Research",
+    desc:  "Deep Analysis — complex systems, security review, architecture planning & high-level reasoning",
+    badge: "Ultra",
+    badgeCls: "bg-purple-500/15 text-purple-400 border-purple-500/25",
   },
 };
 
@@ -272,7 +278,7 @@ export default function Agent() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // ── Code Generator state ──────────────────────────────────────────────────
-  const [agentMode, setAgentMode]     = useState<"agent" | "codegen">("agent");
+  const [agentMode, setAgentMode]     = useState<"agent" | "codegen" | "design">("agent");
   const [cgOutput, setCgOutput]       = useState("");
   const [cgGenerating, setCgGenerating] = useState(false);
   const [cgCopied, setCgCopied]       = useState(false);
@@ -829,6 +835,11 @@ export default function Agent() {
           <Code2 className="w-3 h-3" />
           <span className="hidden sm:inline">Code Gen</span>
         </button>
+        <button onClick={() => setAgentMode("design")}
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex-shrink-0 transition-all ${agentMode === "design" ? isDark ? "bg-pink-500/15 text-pink-400" : "bg-pink-50 text-pink-600" : isDark ? "text-gray-400 hover:text-pink-400 hover:bg-pink-500/8" : "text-gray-500 hover:text-pink-600 hover:bg-pink-50"}`}>
+          <Palette className="w-3 h-3" />
+          <span className="hidden sm:inline">Design</span>
+        </button>
         <button onClick={() => handleDeploy(false)} disabled={!!actionLoading || isRunning}
           className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ml-0.5 flex-shrink-0 ${
             actionLoading === "deploy"
@@ -1021,6 +1032,49 @@ export default function Agent() {
                     </button>
                   </>
                 )}
+              </div>
+            )}
+
+            {/* ── Design Studio mode ───────────────────────────────────── */}
+            {agentMode === "design" && (
+              <div className="px-4 py-6 pb-64">
+                <div className="max-w-2xl mx-auto">
+                  <div className="flex flex-col items-center gap-2 mb-8 text-center">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shadow-lg mb-1">
+                      <Palette className="w-6 h-6 text-white" />
+                    </div>
+                    <h2 className={`text-xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}>Design Studio</h2>
+                    <p className={`text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                      Logo · UI · Photo · Poster · App Icon · Web Design — powered by NVR AI
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {[
+                      { icon: "🎨", title: "Logo Design", desc: "Brand mark + icon", prompt: "Create a modern, minimalist logo for a tech startup called NovaBuild — a SaaS platform for developers. Style: geometric, clean, professional. Primary color: deep blue and electric cyan. Include the brand mark icon concept and a DALL-E 3 prompt." },
+                      { icon: "🖼️", title: "Poster / Banner", desc: "High-res marketing visuals", prompt: "Design a professional social media banner for a premium AI SaaS product launch. Dark background, neon cyan accents, futuristic typography, headline 'The Future of AI is Here'. Provide a vivid DALL-E 3 prompt." },
+                      { icon: "📱", title: "App Icon", desc: "App store optimized", prompt: "Create an app store icon for a productivity AI assistant app. Rounded rectangle, gradient from deep navy to electric blue, minimalist bolt symbol, clean and bold. Provide a precise DALL-E 3 icon generation prompt." },
+                      { icon: "🌐", title: "Web UI Design", desc: "Landing page & components", prompt: "Design a premium SaaS landing page hero section with: dark background (#0d0d0d), large headline, subtitle, two CTA buttons (primary cyan, secondary outlined), animated gradient orb in background. Provide complete Tailwind CSS + React code." },
+                      { icon: "📸", title: "Photo Enhancement", desc: "Style & mood prompts", prompt: "Write a professional DALL-E 3 prompt for a high-quality product photo of a sleek black laptop on a dark studio background with dramatic side lighting and subtle cyan reflections. Cinematic, editorial style." },
+                      { icon: "✨", title: "Brand Identity", desc: "Full brand system", prompt: "Create a complete brand identity system for a FinTech startup called 'Nexora'. Include: color palette (hex codes), typography recommendations, logo concept, icon set description, and UI component color tokens. Premium, trustworthy, modern." },
+                    ].map((item) => (
+                      <button
+                        key={item.title}
+                        onClick={() => setInput(item.prompt)}
+                        className={`text-left p-4 rounded-2xl border transition-all hover:-translate-y-0.5 ${isDark ? "bg-[#0f1420] border-[#1e2a3a] hover:border-pink-500/30 hover:bg-[#131825]" : "bg-white border-gray-200 hover:border-pink-300 hover:shadow-md"}`}
+                      >
+                        <div className="text-2xl mb-2">{item.icon}</div>
+                        <p className={`text-sm font-semibold mb-0.5 ${isDark ? "text-gray-200" : "text-gray-800"}`}>{item.title}</p>
+                        <p className={`text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>{item.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className={`mt-6 p-4 rounded-2xl border text-xs ${isDark ? "bg-[#0a1020] border-[#1a2535] text-gray-500" : "bg-gray-50 border-gray-200 text-gray-400"}`}>
+                    <p className="font-semibold mb-1" style={{ color: isDark ? "#94b4cc" : "#475569" }}>How Design Studio works</p>
+                    <p>Select a template above or type your own design request below. NVR AI will generate design concepts, DALL-E 3 prompts, and production-ready UI code — ready to use in your project.</p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1241,20 +1295,21 @@ export default function Agent() {
           <div
             style={{
               position: "fixed",
-              left: "16px",
-              bottom: "16px",
-              width: "min(680px, calc(100vw - 32px))",
-              height: "112px",
+              left: "24px",
+              bottom: "24px",
+              width: "min(760px, calc(100vw - 32px))",
+              minHeight: "185px",
+              maxHeight: "260px",
               zIndex: 9999,
             }}
-            className="max-[480px]:!left-[8px] max-[480px]:!right-[8px] max-[480px]:!w-auto max-[480px]:!h-[104px]"
+            className="max-[600px]:!left-[12px] max-[600px]:!right-[12px] max-[600px]:!w-auto max-[600px]:!min-h-[150px]"
           >
-            {/* Attached file pill above composer */}
+            {/* Attached file pill above */}
             {attachedFile && (
-              <div className="absolute -top-9 left-0">
+              <div className="absolute -top-10 left-0">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium bg-green-500/10 border-green-500/20 text-green-400">
                   <Paperclip className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="max-w-[200px] truncate">{attachedFile.name}</span>
+                  <span className="max-w-[220px] truncate">{attachedFile.name}</span>
                   <button onClick={() => setAttachedFile(null)} className="ml-0.5 opacity-60 hover:opacity-100"><X className="w-3 h-3" /></button>
                 </div>
               </div>
@@ -1265,17 +1320,17 @@ export default function Agent() {
               style={{
                 position: "relative",
                 width: "100%",
-                height: "100%",
-                background: "rgba(15, 23, 42, 0.92)",
-                border: "1px solid rgba(45, 212, 191, 0.55)",
-                boxShadow: "0 0 0 1px rgba(45,212,191,.18), 0 18px 50px rgba(0,0,0,.35)",
-                borderRadius: "18px",
-                backdropFilter: "blur(18px)",
-                WebkitBackdropFilter: "blur(18px)",
+                minHeight: "185px",
+                maxHeight: "260px",
+                background: isDark ? "#0b1220" : "#ffffff",
+                border: isDark ? "1px solid rgba(45, 212, 191, 0.35)" : "1px solid rgba(15, 23, 42, 0.16)",
+                boxShadow: "0 18px 60px rgba(0,0,0,.18)",
+                borderRadius: "22px",
                 overflow: "hidden",
               }}
+              className="max-[600px]:!min-h-[150px]"
             >
-              {/* Textarea — top portion */}
+              {/* Textarea */}
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -1283,141 +1338,166 @@ export default function Agent() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    agentMode === "codegen" ? void handleCodeGen(input) : void handleSend();
+                    agentMode === "codegen" || agentMode === "design" ? void handleCodeGen(input) : void handleSend();
                   }
                 }}
                 placeholder={
                   listening ? "Listening…" :
                   agentMode === "codegen" ? "Describe the UI component you want to generate…" :
-                  "Ask NVR Agent to build, fix, scan, or deploy…"
+                  agentMode === "design" ? "Describe the logo, UI, photo, banner, or icon you want to design…" :
+                  "Ask NVR Agent to build, fix, scan, design, or deploy."
                 }
                 style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: "58px",
-                  padding: "14px 18px 0 18px",
+                  display: "block",
+                  width: "100%",
+                  height: "105px",
+                  padding: "28px 34px 8px 34px",
                   background: "transparent",
                   border: "none",
                   outline: "none",
                   resize: "none",
-                  fontSize: "15px",
-                  lineHeight: "1.5",
-                  color: "#e5eef7",
+                  fontSize: "clamp(17px, 2vw, 26px)",
+                  lineHeight: "1.35",
+                  color: isDark ? "#e5eef7" : "#0f172a",
                   fontFamily: "inherit",
+                  fontWeight: 400,
                 }}
-                className={`placeholder:text-[#3a5068] ${listening ? "placeholder:text-cyan-400 placeholder:animate-pulse" : ""}`}
+                className={`${isDark ? "placeholder:text-[#3a5068]" : "placeholder:text-gray-400"} max-[600px]:!h-[68px] max-[600px]:![padding:16px_20px_8px] max-[600px]:![font-size:17px] ${listening ? "placeholder:text-cyan-400 placeholder:animate-pulse" : ""}`}
               />
 
               {/* Bottom row */}
               <div
                 style={{
                   position: "absolute",
-                  bottom: "10px",
-                  left: "12px",
-                  right: "12px",
+                  bottom: "14px",
+                  left: "18px",
+                  right: "18px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
+                  gap: "8px",
                 }}
               >
-                {/* Left: logo + model selector */}
-                <div className="relative flex-shrink-0">
+                {/* Left: model selector */}
+                <div className="relative flex-shrink-0 min-w-0">
                   <button
                     onClick={() => setShowModelMenu(!showModelMenu)}
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "6px",
-                      padding: "5px 10px 5px 6px",
-                      borderRadius: "10px",
-                      border: "1px solid rgba(45,212,191,0.22)",
-                      background: "rgba(6,182,212,0.06)",
-                      fontSize: "12px",
+                      gap: "8px",
+                      padding: "7px 13px 7px 8px",
+                      borderRadius: "12px",
+                      border: isDark ? "1px solid rgba(45,212,191,0.25)" : "1px solid rgba(15,23,42,0.12)",
+                      background: isDark ? "rgba(6,182,212,0.07)" : "rgba(15,23,42,0.04)",
+                      fontSize: "13px",
                       fontWeight: 600,
-                      color: "#94b4cc",
+                      color: isDark ? "#94b4cc" : "#334155",
                       whiteSpace: "nowrap",
                       cursor: "pointer",
                       transition: "all 0.15s",
+                      maxWidth: "240px",
                     }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(45,212,191,0.5)"; (e.currentTarget as HTMLButtonElement).style.color = "#2dd4bf"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(45,212,191,0.22)"; (e.currentTarget as HTMLButtonElement).style.color = "#94b4cc"; }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = isDark ? "rgba(45,212,191,0.5)" : "rgba(6,182,212,0.45)"; (e.currentTarget as HTMLButtonElement).style.color = isDark ? "#2dd4bf" : "#0891b2"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = isDark ? "rgba(45,212,191,0.25)" : "rgba(15,23,42,0.12)"; (e.currentTarget as HTMLButtonElement).style.color = isDark ? "#94b4cc" : "#334155"; }}
                   >
-                    <AnimatedNvrLogo activity={agentActivity} size={18} />
-                    <span>{MODEL_INFO[model].label}</span>
-                    <ChevronDown className={`w-3 h-3 transition-transform flex-shrink-0 ${showModelMenu ? "rotate-180" : ""}`} style={{ color: "#4a6a80" }} />
+                    <AnimatedNvrLogo activity={agentActivity} size={20} />
+                    <span className="truncate">{MODEL_INFO[model].label}</span>
+                    <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${showModelMenu ? "rotate-180" : ""}`} style={{ color: isDark ? "#4a6a80" : "#94a3b8" }} />
                   </button>
 
                   {showModelMenu && (
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setShowModelMenu(false)} />
-                      <div className="absolute left-0 bottom-full mb-2 w-72 rounded-2xl border shadow-2xl z-20 overflow-hidden"
-                        style={{ background: "#0f172a", border: "1px solid rgba(45,212,191,0.25)" }}>
-                        {(Object.entries(MODEL_INFO) as [AgentModel, typeof MODEL_INFO[AgentModel]][]).map(([key, info]) => (
-                          <button key={key} onClick={() => { setModel(key); setShowModelMenu(false); }}
-                            className={`w-full text-left px-4 py-3 text-xs transition-all flex items-start gap-3 ${model === key ? "bg-cyan-500/10" : "hover:bg-white/5"}`}>
-                            <Rocket className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${model === key ? "text-cyan-400" : "text-gray-500"}`} />
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 mb-0.5">
-                                <span className={`font-semibold ${model === key ? "text-cyan-400" : "text-gray-200"}`}>{info.label}</span>
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-bold ${info.badgeCls}`}>{info.badge}</span>
+                      <div
+                        className="absolute left-0 bottom-full mb-2 rounded-2xl shadow-2xl z-20 overflow-hidden"
+                        style={{ width: "340px", background: isDark ? "#0b1220" : "#fff", border: isDark ? "1px solid rgba(45,212,191,0.2)" : "1px solid rgba(15,23,42,0.12)", boxShadow: "0 24px 60px rgba(0,0,0,0.35)" }}
+                      >
+                        <div className="px-4 pt-3 pb-1">
+                          <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: isDark ? "#3a5878" : "#94a3b8" }}>Select Agent Model</p>
+                        </div>
+                        {(Object.entries(MODEL_INFO) as [AgentModel, typeof MODEL_INFO[AgentModel]][]).map(([key, info]) => {
+                          const powerLevels: Record<AgentModel, number> = { "nvr-7.7": 38, "nvr-8.8": 65, "nvr-9.9": 85, "nvr-9.9-ultra": 100 };
+                          const barColors: Record<AgentModel, string> = { "nvr-7.7": "#3b82f6", "nvr-8.8": "#06b6d4", "nvr-9.9": "#f59e0b", "nvr-9.9-ultra": "#a855f7" };
+                          const bestFor: Record<AgentModel, string> = { "nvr-7.7": "Daily chat, writing, basic code", "nvr-8.8": "Code scanning, bug fixing, builds", "nvr-9.9": "Full deployment, CI/CD, production", "nvr-9.9-ultra": "Research, architecture, strategy" };
+                          return (
+                            <button key={key} onClick={() => { setModel(key); setShowModelMenu(false); }}
+                              className="w-full text-left px-4 py-3 transition-all block"
+                              style={{ background: model === key ? (isDark ? "rgba(6,182,212,0.08)" : "rgba(6,182,212,0.05)") : "transparent" }}
+                              onMouseEnter={(e) => { if (model !== key) (e.currentTarget as HTMLButtonElement).style.background = isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)"; }}
+                              onMouseLeave={(e) => { if (model !== key) (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+                            >
+                              <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-sm" style={{ color: model === key ? (isDark ? "#2dd4bf" : "#0891b2") : (isDark ? "#e2e8f0" : "#0f172a") }}>{info.label}</span>
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-bold ${info.badgeCls}`}>{info.badge}</span>
+                                </div>
+                                <span className="text-[10px] font-bold tabular-nums" style={{ color: barColors[key] }}>{powerLevels[key]}%</span>
                               </div>
-                              <p className="text-xs leading-relaxed text-gray-500">{info.desc}</p>
-                            </div>
-                          </button>
-                        ))}
+                              <div className="w-full h-[3px] rounded-full mb-1.5 overflow-hidden" style={{ background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }}>
+                                <div className="h-full rounded-full" style={{ width: `${powerLevels[key]}%`, background: barColors[key] }} />
+                              </div>
+                              <p className="text-[11px]" style={{ color: isDark ? "#4a6a80" : "#94a3b8" }}>Best for: {bestFor[key]}</p>
+                            </button>
+                          );
+                        })}
+                        <div className="px-4 py-2.5 border-t" style={{ borderColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)" }}>
+                          <p className="text-[10px] text-center" style={{ color: isDark ? "#3a5878" : "#94a3b8" }}>9.9 Ultra requires permission before deploy / delete / database operations</p>
+                        </div>
                       </div>
                     </>
                   )}
                 </div>
 
-                {/* Right: action icons */}
-                <div className="flex items-center gap-0.5 flex-shrink-0">
+                {/* Right: icons + 64px send button */}
+                <div className="flex items-center gap-1 flex-shrink-0">
                   <button onClick={() => setLivePreviewOpen(true)} title="Live preview"
-                    style={{ padding: "6px", borderRadius: "9px", transition: "all 0.15s", color: livePreviewOpen ? "#22d3ee" : "#3a5878", background: livePreviewOpen ? "rgba(6,182,212,0.12)" : "transparent" }}>
-                    <Monitor className="w-[17px] h-[17px]" />
+                    style={{ padding: "8px", borderRadius: "11px", transition: "all 0.15s", color: livePreviewOpen ? "#22d3ee" : (isDark ? "#3a5878" : "#94a3b8"), background: livePreviewOpen ? "rgba(6,182,212,0.12)" : "transparent" }}>
+                    <Monitor className="w-5 h-5" />
                   </button>
                   <button onClick={handleMic} title={listening ? "Stop" : "Voice input"}
-                    style={{ padding: "6px", borderRadius: "9px", transition: "all 0.15s", color: listening ? "#22d3ee" : "#3a5878", background: listening ? "rgba(6,182,212,0.12)" : "transparent" }}>
+                    style={{ padding: "8px", borderRadius: "11px", transition: "all 0.15s", color: listening ? "#22d3ee" : (isDark ? "#3a5878" : "#94a3b8"), background: listening ? "rgba(6,182,212,0.12)" : "transparent" }}>
                     {listening ? (
-                      <span className="flex items-end gap-[2px] w-[17px] h-[17px]">
+                      <span className="flex items-end gap-[2px] w-5 h-5">
                         {[1,2,3,4].map((i) => (
-                          <span key={i} className="bg-cyan-400 rounded-full w-[2.5px] animate-bounce" style={{ height: `${4 + i*3}px`, animationDelay: `${i*0.1}s`, animationDuration: "0.55s" }} />
+                          <span key={i} className="bg-cyan-400 rounded-full w-[3px] animate-bounce" style={{ height: `${5 + i*3}px`, animationDelay: `${i*0.1}s`, animationDuration: "0.55s" }} />
                         ))}
                       </span>
-                    ) : <Mic className="w-[17px] h-[17px]" />}
+                    ) : <Mic className="w-5 h-5" />}
                   </button>
                   <button onClick={() => fileInputRef.current?.click()} title="Attach file"
-                    style={{ padding: "6px", borderRadius: "9px", transition: "all 0.15s", color: attachedFile ? "#4ade80" : "#3a5878", background: attachedFile ? "rgba(74,222,128,0.10)" : "transparent" }}>
-                    <Paperclip className="w-[17px] h-[17px]" />
+                    style={{ padding: "8px", borderRadius: "11px", transition: "all 0.15s", color: attachedFile ? "#4ade80" : (isDark ? "#3a5878" : "#94a3b8"), background: attachedFile ? "rgba(74,222,128,0.10)" : "transparent" }}>
+                    <Paperclip className="w-5 h-5" />
                   </button>
                   {isRunning || cgGenerating ? (
                     <button
                       onClick={isRunning ? handleStop : () => setCgGenerating(false)}
                       title="Stop"
-                      style={{ width: "32px", height: "32px", borderRadius: "10px", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", color: "#f87171", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}>
-                      <Square className="w-3.5 h-3.5" />
+                      style={{ width: "64px", height: "64px", borderRadius: "16px", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", flexShrink: 0 }}
+                      className="max-[600px]:!w-[52px] max-[600px]:!h-[52px]">
+                      <Square className="w-5 h-5" />
                     </button>
                   ) : (
                     <button
-                      onClick={() => agentMode === "codegen" ? void handleCodeGen(input) : void handleSend()}
+                      onClick={() => agentMode === "codegen" || agentMode === "design" ? void handleCodeGen(input) : void handleSend()}
                       disabled={!input.trim() && !attachedFile}
                       title="Send (Enter)"
                       style={{
-                        width: "32px",
-                        height: "32px",
-                        borderRadius: "10px",
+                        width: "64px",
+                        height: "64px",
+                        borderRadius: "16px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         transition: "all 0.15s",
-                        background: (input.trim() || attachedFile) ? "#06b6d4" : "rgba(30,42,58,0.8)",
-                        color: (input.trim() || attachedFile) ? "#fff" : "#2a4055",
-                        boxShadow: (input.trim() || attachedFile) ? "0 2px 16px rgba(6,182,212,0.45)" : "none",
+                        background: (input.trim() || attachedFile) ? "#06b6d4" : (isDark ? "rgba(30,42,58,0.8)" : "rgba(241,245,249,1)"),
+                        color: (input.trim() || attachedFile) ? "#fff" : (isDark ? "#2a4055" : "#cbd5e1"),
+                        boxShadow: (input.trim() || attachedFile) ? "0 4px 20px rgba(6,182,212,0.5)" : "none",
                         cursor: (input.trim() || attachedFile) ? "pointer" : "not-allowed",
-                      }}>
-                      <ArrowUp className="w-4 h-4" />
+                        flexShrink: 0,
+                      }}
+                      className="max-[600px]:!w-[52px] max-[600px]:!h-[52px]">
+                      <ArrowUp className="w-6 h-6" />
                     </button>
                   )}
                 </div>
