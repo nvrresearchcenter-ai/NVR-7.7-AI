@@ -1238,12 +1238,21 @@ export default function Agent() {
           </div>{/* end scrollable */}
 
           {/* ── Fixed Bottom Composer ─────────────────────────────────────── */}
-          <div className="fixed bottom-0 left-0 right-0 z-30 md:bottom-3 md:left-4 md:right-auto md:w-[520px] px-3 pb-3 md:px-0 md:pb-0">
-
-            {/* Attached file pill */}
+          <div
+            style={{
+              position: "fixed",
+              left: "16px",
+              bottom: "16px",
+              width: "min(680px, calc(100vw - 32px))",
+              height: "112px",
+              zIndex: 9999,
+            }}
+            className="max-[480px]:!left-[8px] max-[480px]:!right-[8px] max-[480px]:!w-auto max-[480px]:!h-[104px]"
+          >
+            {/* Attached file pill above composer */}
             {attachedFile && (
-              <div className="mb-1.5 ml-1">
-                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium ${isDark ? "bg-green-500/10 border-green-500/20 text-green-400" : "bg-green-50 border-green-200 text-green-700"}`}>
+              <div className="absolute -top-9 left-0">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium bg-green-500/10 border-green-500/20 text-green-400">
                   <Paperclip className="w-3.5 h-3.5 flex-shrink-0" />
                   <span className="max-w-[200px] truncate">{attachedFile.name}</span>
                   <button onClick={() => setAttachedFile(null)} className="ml-0.5 opacity-60 hover:opacity-100"><X className="w-3 h-3" /></button>
@@ -1251,41 +1260,22 @@ export default function Agent() {
               </div>
             )}
 
-            {/* Single-row composer */}
-            <div className={`flex items-center gap-2 px-3 min-h-[60px] rounded-2xl border transition-all duration-200 ${composerBg}`}>
-
-              {/* Left: animated logo + model selector */}
-              <div className="relative flex-shrink-0">
-                <button
-                  onClick={() => setShowModelMenu(!showModelMenu)}
-                  className={`flex items-center gap-1.5 pl-1 pr-2 py-1.5 rounded-xl border text-[11px] font-semibold transition-all whitespace-nowrap ${isDark ? "border-[#1e2632] bg-[#0c1018] text-gray-300 hover:border-cyan-500/40 hover:text-cyan-300" : "border-gray-200 bg-gray-50 text-gray-600 hover:border-cyan-300 hover:text-cyan-600"}`}>
-                  <AnimatedNvrLogo activity={agentActivity} size={20} />
-                  {MODEL_INFO[model].label}
-                  <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform flex-shrink-0 ${showModelMenu ? "rotate-180" : ""}`} />
-                </button>
-                {showModelMenu && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowModelMenu(false)} />
-                    <div className={`absolute left-0 bottom-full mb-2 w-72 rounded-2xl border shadow-2xl z-20 overflow-hidden ${isDark ? "bg-[#141920] border-[#2a3040]" : "bg-white border-gray-200"}`}>
-                      {(Object.entries(MODEL_INFO) as [AgentModel, typeof MODEL_INFO[AgentModel]][]).map(([key, info]) => (
-                        <button key={key} onClick={() => { setModel(key); setShowModelMenu(false); }}
-                          className={`w-full text-left px-4 py-3 text-xs transition-all flex items-start gap-3 ${model === key ? isDark ? "bg-cyan-500/10" : "bg-cyan-50" : isDark ? "hover:bg-white/5" : "hover:bg-gray-50"}`}>
-                          <Rocket className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${model === key ? "text-cyan-400" : textMuted}`} />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <span className={`font-semibold ${model === key ? (isDark ? "text-cyan-400" : "text-cyan-600") : (isDark ? "text-white" : "text-gray-900")}`}>{info.label}</span>
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-bold ${info.badgeCls}`}>{info.badge}</span>
-                            </div>
-                            <p className={`text-xs leading-relaxed ${textMuted}`}>{info.desc}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Center: auto-growing textarea */}
+            {/* Composer box */}
+            <div
+              style={{
+                position: "relative",
+                width: "100%",
+                height: "100%",
+                background: "rgba(15, 23, 42, 0.92)",
+                border: "1px solid rgba(45, 212, 191, 0.55)",
+                boxShadow: "0 0 0 1px rgba(45,212,191,.18), 0 18px 50px rgba(0,0,0,.35)",
+                borderRadius: "18px",
+                backdropFilter: "blur(18px)",
+                WebkitBackdropFilter: "blur(18px)",
+                overflow: "hidden",
+              }}
+            >
+              {/* Textarea — top portion */}
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -1299,49 +1289,138 @@ export default function Agent() {
                 placeholder={
                   listening ? "Listening…" :
                   agentMode === "codegen" ? "Describe the UI component you want to generate…" :
-                  messages.length === 0 ? "Ask NVR Agent to build, fix, scan, or deploy…" :
-                  "Give the next instruction…"
+                  "Ask NVR Agent to build, fix, scan, or deploy…"
                 }
-                rows={1}
-                style={{ minHeight: "36px", maxHeight: "120px" }}
-                className={`flex-1 min-w-0 bg-transparent resize-none outline-none text-[14px] leading-relaxed py-[7px] px-1 ${isDark ? "text-white placeholder:text-[#3d4a5c]" : "text-gray-900 placeholder:text-gray-400"} ${listening ? "placeholder:text-cyan-400 placeholder:animate-pulse" : ""}`}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: "58px",
+                  padding: "14px 18px 0 18px",
+                  background: "transparent",
+                  border: "none",
+                  outline: "none",
+                  resize: "none",
+                  fontSize: "15px",
+                  lineHeight: "1.5",
+                  color: "#e5eef7",
+                  fontFamily: "inherit",
+                }}
+                className={`placeholder:text-[#3a5068] ${listening ? "placeholder:text-cyan-400 placeholder:animate-pulse" : ""}`}
               />
 
-              {/* Right: icon buttons */}
-              <div className="flex items-center gap-0.5 flex-shrink-0">
-                <button onClick={() => setLivePreviewOpen(true)} title="Live preview"
-                  className={`p-1.5 rounded-xl transition-all ${livePreviewOpen ? "text-cyan-400 bg-cyan-500/10" : isDark ? "text-[#606878] hover:text-cyan-400 hover:bg-white/5" : "text-gray-400 hover:text-cyan-500 hover:bg-gray-50"}`}>
-                  <Monitor className="w-[16px] h-[16px]" />
-                </button>
-                <button onClick={handleMic} title={listening ? "Stop" : "Voice input"}
-                  className={`p-1.5 rounded-xl transition-all ${listening ? "text-cyan-400 bg-cyan-500/10" : isDark ? "text-[#606878] hover:text-cyan-400 hover:bg-white/5" : "text-gray-400 hover:text-cyan-500 hover:bg-gray-50"}`}>
-                  {listening ? (
-                    <span className="flex items-end gap-[2px] w-[16px] h-[16px]">
-                      {[1,2,3,4].map((i) => (
-                        <span key={i} className="bg-cyan-400 rounded-full w-[2.5px] animate-bounce" style={{ height: `${4 + i*3}px`, animationDelay: `${i*0.1}s`, animationDuration: "0.55s" }} />
-                      ))}
-                    </span>
-                  ) : <Mic className="w-[16px] h-[16px]" />}
-                </button>
-                <button onClick={() => fileInputRef.current?.click()} title="Attach file"
-                  className={`p-1.5 rounded-xl transition-all ${attachedFile ? "text-green-400 bg-green-500/10" : isDark ? "text-[#606878] hover:text-cyan-400 hover:bg-white/5" : "text-gray-400 hover:text-cyan-500 hover:bg-gray-50"}`}>
-                  <Paperclip className="w-[16px] h-[16px]" />
-                </button>
-                {isRunning || cgGenerating ? (
+              {/* Bottom row */}
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "10px",
+                  left: "12px",
+                  right: "12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                {/* Left: logo + model selector */}
+                <div className="relative flex-shrink-0">
                   <button
-                    onClick={isRunning ? handleStop : () => setCgGenerating(false)}
-                    className="w-7 h-7 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/20 transition-all flex items-center justify-center" title="Stop">
-                    <Square className="w-3 h-3" />
+                    onClick={() => setShowModelMenu(!showModelMenu)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "5px 10px 5px 6px",
+                      borderRadius: "10px",
+                      border: "1px solid rgba(45,212,191,0.22)",
+                      background: "rgba(6,182,212,0.06)",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#94b4cc",
+                      whiteSpace: "nowrap",
+                      cursor: "pointer",
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(45,212,191,0.5)"; (e.currentTarget as HTMLButtonElement).style.color = "#2dd4bf"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(45,212,191,0.22)"; (e.currentTarget as HTMLButtonElement).style.color = "#94b4cc"; }}
+                  >
+                    <AnimatedNvrLogo activity={agentActivity} size={18} />
+                    <span>{MODEL_INFO[model].label}</span>
+                    <ChevronDown className={`w-3 h-3 transition-transform flex-shrink-0 ${showModelMenu ? "rotate-180" : ""}`} style={{ color: "#4a6a80" }} />
                   </button>
-                ) : (
-                  <button
-                    onClick={() => agentMode === "codegen" ? void handleCodeGen(input) : void handleSend()}
-                    disabled={!input.trim() && !attachedFile}
-                    title="Send (Enter)"
-                    className={`w-7 h-7 rounded-xl flex items-center justify-center transition-all active:scale-90 ${(input.trim() || attachedFile) ? "bg-cyan-500 hover:bg-cyan-400 text-white shadow-[0_2px_14px_rgba(6,182,212,0.5)]" : isDark ? "bg-[#161b22] text-[#3a4455] cursor-not-allowed" : "bg-gray-100 text-gray-300 cursor-not-allowed"}`}>
-                    <ArrowUp className="w-3.5 h-3.5" />
+
+                  {showModelMenu && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setShowModelMenu(false)} />
+                      <div className="absolute left-0 bottom-full mb-2 w-72 rounded-2xl border shadow-2xl z-20 overflow-hidden"
+                        style={{ background: "#0f172a", border: "1px solid rgba(45,212,191,0.25)" }}>
+                        {(Object.entries(MODEL_INFO) as [AgentModel, typeof MODEL_INFO[AgentModel]][]).map(([key, info]) => (
+                          <button key={key} onClick={() => { setModel(key); setShowModelMenu(false); }}
+                            className={`w-full text-left px-4 py-3 text-xs transition-all flex items-start gap-3 ${model === key ? "bg-cyan-500/10" : "hover:bg-white/5"}`}>
+                            <Rocket className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${model === key ? "text-cyan-400" : "text-gray-500"}`} />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <span className={`font-semibold ${model === key ? "text-cyan-400" : "text-gray-200"}`}>{info.label}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-bold ${info.badgeCls}`}>{info.badge}</span>
+                              </div>
+                              <p className="text-xs leading-relaxed text-gray-500">{info.desc}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Right: action icons */}
+                <div className="flex items-center gap-0.5 flex-shrink-0">
+                  <button onClick={() => setLivePreviewOpen(true)} title="Live preview"
+                    style={{ padding: "6px", borderRadius: "9px", transition: "all 0.15s", color: livePreviewOpen ? "#22d3ee" : "#3a5878", background: livePreviewOpen ? "rgba(6,182,212,0.12)" : "transparent" }}>
+                    <Monitor className="w-[17px] h-[17px]" />
                   </button>
-                )}
+                  <button onClick={handleMic} title={listening ? "Stop" : "Voice input"}
+                    style={{ padding: "6px", borderRadius: "9px", transition: "all 0.15s", color: listening ? "#22d3ee" : "#3a5878", background: listening ? "rgba(6,182,212,0.12)" : "transparent" }}>
+                    {listening ? (
+                      <span className="flex items-end gap-[2px] w-[17px] h-[17px]">
+                        {[1,2,3,4].map((i) => (
+                          <span key={i} className="bg-cyan-400 rounded-full w-[2.5px] animate-bounce" style={{ height: `${4 + i*3}px`, animationDelay: `${i*0.1}s`, animationDuration: "0.55s" }} />
+                        ))}
+                      </span>
+                    ) : <Mic className="w-[17px] h-[17px]" />}
+                  </button>
+                  <button onClick={() => fileInputRef.current?.click()} title="Attach file"
+                    style={{ padding: "6px", borderRadius: "9px", transition: "all 0.15s", color: attachedFile ? "#4ade80" : "#3a5878", background: attachedFile ? "rgba(74,222,128,0.10)" : "transparent" }}>
+                    <Paperclip className="w-[17px] h-[17px]" />
+                  </button>
+                  {isRunning || cgGenerating ? (
+                    <button
+                      onClick={isRunning ? handleStop : () => setCgGenerating(false)}
+                      title="Stop"
+                      style={{ width: "32px", height: "32px", borderRadius: "10px", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", color: "#f87171", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}>
+                      <Square className="w-3.5 h-3.5" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => agentMode === "codegen" ? void handleCodeGen(input) : void handleSend()}
+                      disabled={!input.trim() && !attachedFile}
+                      title="Send (Enter)"
+                      style={{
+                        width: "32px",
+                        height: "32px",
+                        borderRadius: "10px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "all 0.15s",
+                        background: (input.trim() || attachedFile) ? "#06b6d4" : "rgba(30,42,58,0.8)",
+                        color: (input.trim() || attachedFile) ? "#fff" : "#2a4055",
+                        boxShadow: (input.trim() || attachedFile) ? "0 2px 16px rgba(6,182,212,0.45)" : "none",
+                        cursor: (input.trim() || attachedFile) ? "pointer" : "not-allowed",
+                      }}>
+                      <ArrowUp className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
