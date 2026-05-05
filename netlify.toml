@@ -1,7 +1,18 @@
 [build]
-  command = "vite build"
-  publish = "dist/client"
-[dev]
-  command = "npm run dev"
-  targetPort = 3000
-  port = 8888
+  base    = "artifacts/nvr-app"
+  command = "npm install -g pnpm@9 && cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @workspace/nvr-app run build"
+  publish = "dist/public"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[redirects]]
+  from   = "/api/*"
+  to     = "https://6d3aab76-a237-49c9-9ace-be596f4240d5-00-b4c4penmg3zj.pike.replit.dev/api/:splat"
+  status = 200
+  force  = true
+
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
