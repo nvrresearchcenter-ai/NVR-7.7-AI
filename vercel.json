@@ -1,0 +1,16 @@
+{
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm --filter @workspace/nvr-app run build",
+  "outputDirectory": "artifacts/nvr-app/dist/public",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://6d3aab76-a237-49c9-9ace-be596f4240d5-00-b4c4penmg3zj.pike.replit.dev/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
